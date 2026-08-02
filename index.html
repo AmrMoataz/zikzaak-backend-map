@@ -136,7 +136,8 @@ button.node:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)
 .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
 
 /* ── nav cards (surfaces / areas) ── */
-.card{all:unset;box-sizing:border-box;position:relative;display:block;width:100%;text-align:left;cursor:pointer;
+.card{all:unset;box-sizing:border-box;position:relative;display:flex;flex-direction:column;align-items:stretch;
+  justify-content:flex-start;width:100%;text-align:left;cursor:pointer;
   background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:20px;
   font-family:var(--font-ui);font-size:16px;color:var(--ink);
   transition:transform 200ms var(--ease),box-shadow 200ms var(--ease),border-color 200ms var(--ease)}
