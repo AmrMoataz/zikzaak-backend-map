@@ -135,6 +135,22 @@ button.node:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)
   border:1px solid var(--line);padding:3px 7px;border-radius:var(--r-xs)}
 .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
 
+/* ── nav cards (surfaces / areas) ── */
+.card{all:unset;box-sizing:border-box;position:relative;display:block;width:100%;text-align:left;cursor:pointer;
+  background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:20px;
+  font-family:var(--font-ui);font-size:16px;color:var(--ink);
+  transition:transform 200ms var(--ease),box-shadow 200ms var(--ease),border-color 200ms var(--ease)}
+.card:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--line2)}
+.card:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.card .go{position:absolute;top:20px;right:20px;font-size:12px;font-weight:500;color:var(--accent);
+  opacity:0;transform:translateX(-4px);transition:opacity 160ms var(--ease),transform 160ms var(--ease)}
+.card:hover .go,.card:focus-visible .go{opacity:1;transform:none}
+.card .kicker{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-right:72px;min-height:22px}
+.card p{margin:10px 0 0;font-size:14px;line-height:1.5;color:var(--soft)}
+.card .tbl-list{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+.card .tbl-list span{font-family:var(--font-mono);font-size:11.5px;line-height:1.5;color:var(--soft);
+  background:var(--sunk);border:1px solid var(--line);padding:3px 7px;border-radius:var(--r-xs);white-space:nowrap}
+
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
 .blk{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
 .blk h5{margin:0 0 12px;font-size:15px;font-weight:600;letter-spacing:-.01em}
@@ -1172,7 +1188,7 @@ function viewReq(k){
     const ic=SF_ICON[sf]||['gray','?'];
     const b=el('button','card','<span class="go">Open &rarr;</span>'+
       '<div class="kicker"><span class="tag t-'+ic[0]+'">'+sf+'</span><span class="tag t-gray">'+n+'</span></div>'+
-      '<p style="margin-top:0">'+(SF_DESC[sf]||'')+'</p>'+
+      '<p>'+(SF_DESC[sf]||'')+'</p>'+
       '<div class="tbl-list">'+Object.keys(areas).map(a=>'<span>'+a+' · '+areas[a].length+'</span>').join('')+'</div>');
     b.onclick=()=>go('reqs-'+k+'~'+slug(sf));
     g.appendChild(b);
