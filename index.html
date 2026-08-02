@@ -1313,8 +1313,10 @@ addEventListener('popstate',e=>{const i=e.state&&typeof e.state.i==='number'?e.s
 function crumbs(){
   const c=document.getElementById('crumbs');c.innerHTML='';
   const chain=[];let k=cur;while(k){chain.unshift(k);k=PARENT[k]}
+  const clabel=k=>k.indexOf('req-')===0?'Requirements':k.indexOf('erd-')===0?'Tables':
+    k.indexOf('dom-')===0?'Domain':META[k][0].replace(/\.$/,'').split('—')[0].trim();
   chain.forEach((kk,i)=>{
-    const t=META[kk][0].split('—')[0].trim();
+    const t=clabel(kk);
     if(i<chain.length-1){const b=el('button',null,t);b.onclick=()=>go(kk);c.appendChild(b);c.appendChild(el('i',null,'/'))}
     else c.appendChild(el('b',null,t));
   });
@@ -1342,6 +1344,10 @@ function setTheme(t){document.documentElement.dataset.theme=t;document.getElemen
 let t0='light';try{t0=localStorage.getItem('zk-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}
 setTheme(t0);
 document.getElementById('theme').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+addEventListener('hashchange',()=>{
+  const k=(location.hash||'').slice(1)||'map';
+  if(k!==cur&&(k in META)){stack=stack.slice(0,idx+1);stack.push(k);idx=stack.length-1;render(k)}
+});
 railRender();
 go((location.hash||'').slice(1)||'map',true);
 </script>
