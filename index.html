@@ -152,6 +152,28 @@ button.node:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)
 .card .tbl-list span{font-family:var(--font-mono);font-size:11.5px;line-height:1.5;color:var(--soft);
   background:var(--sunk);border:1px solid var(--line);padding:3px 7px;border-radius:var(--r-xs);white-space:nowrap}
 
+
+/* access matrix */
+.mtx{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:auto;margin:0 0 18px}
+.mtx table{border-collapse:collapse;width:100%;font-size:13px}
+.mtx th,.mtx td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;white-space:nowrap}
+.mtx thead th{position:sticky;top:0;background:var(--sunk);font-weight:600;font-size:12px;color:var(--soft);z-index:1}
+.mtx tbody tr:last-child td{border-bottom:0}
+.mtx tbody tr:hover td{background:var(--hover)}
+.mtx td.rn{font-family:var(--font-mono);font-size:12px;position:sticky;left:0;background:var(--paper);border-right:1px solid var(--line)}
+.mtx tbody tr:hover td.rn{background:var(--hover)}
+.mtx thead th.rn{position:sticky;left:0;top:0;background:var(--sunk);border-right:1px solid var(--line);z-index:2}
+.mtx td.c{text-align:center;font-weight:600;font-family:var(--font-mono)}
+.mtx td.grp{background:var(--sunk);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:600}
+.sc{display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;border-radius:6px;font-size:11px;font-weight:600}
+.sc-F{background:var(--purple-bg);color:var(--purple)}.sc-M{background:var(--blue-bg);color:var(--blue)}
+.sc-A{background:var(--pink-bg);color:var(--pink)}.sc-V{background:var(--green-bg);color:var(--green)}
+.sc-R{background:var(--yellow-bg);color:var(--yellow)}.sc-O{background:var(--orange-bg);color:var(--orange)}
+.sc-N{background:transparent;color:var(--muted)}
+.yes{color:var(--green);font-weight:700}.no{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 18px;font-size:13px;color:var(--soft)}
+.legend span b{color:var(--ink)}
+.mtxnote{background:var(--orange-bg);color:var(--orange);border-radius:10px;padding:12px 16px;font-size:14px;margin:0 0 18px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
 .blk{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
 .blk h5{margin:0 0 12px;font-size:15px;font-weight:600;letter-spacing:-.01em}
@@ -346,8 +368,9 @@ const M={
  identity:{lane:'Foundation',color:'blue',status:'active',tables:12,
    what:'Customer, admin and agent auth. OTP, MFA, tokens, sessions.',
    sub:'Who is calling. Never what they may do — that is access.'},
- access:{lane:'Foundation',color:'gray',status:'planned',tables:8,
-   what:'Roles, permissions, approvals, sessions, the audit log.'},
+ access:{lane:'Foundation',color:'orange',status:'active',tables:8,
+   what:'Roles, permissions, sensitive grants, approvals, the audit log.',
+   sub:'What an admin may do, who approved it, and the record that it happened.'},
  catalog:{lane:'Foundation',color:'purple',status:'active',tables:17,
    what:'Events, the taxonomy, venues, seat layout and what is on sale.',
    sub:'What exists. Read by everything, written by almost nothing.'},
@@ -359,6 +382,8 @@ const M={
    what:'An external broker feed. A cache, not truth.'},
  supply_agent:{lane:'Supply',color:'gray',status:'planned',tables:3,
    what:'Broker listings, behind an approval gate.'},
+ supply_activity:{lane:'Supply',color:'gray',status:'planned',tables:2,
+   what:'Padel and time-slot activities. New, and undesigned.'},
  availability:{lane:'Supply',color:'gray',status:'planned',tables:1,
    what:'The read model all supply sources project into.'},
  pricing:{lane:'Selling',color:'gray',status:'planned',tables:2,
@@ -386,10 +411,13 @@ const LINKS=[
  ['supply_moonline','catalog','event_id'],['supply_moonline','supply','supplier_id'],
  ['supply_tixstock','catalog','event_id'],['supply_tixstock','supply','supplier_id'],
  ['supply_agent','catalog','event_id'],
+ ['supply_activity','catalog','activity event'],
  ['availability','supply_moonline','projects'],['availability','supply_tixstock','projects'],
- ['availability','supply_agent','projects'],['availability','catalog','event_id'],
+ ['availability','supply_agent','projects'],['availability','supply_activity','projects'],
+ ['availability','catalog','event_id'],
  ['ordering','availability','reads'],['ordering','pricing','prices'],['ordering','promotions','discount'],
  ['ordering','identity','customer_id'],
+ ['ordering','access','refund approval'],
  ['invoicing','ordering','on paid'],['packages','catalog','composes'],['packages','pricing','prices'],
  ['notifications','ordering','listens'],['notifications','catalog','listens'],
  ['sap','ordering','frozen records'],['reporting','sap','aggregates']
@@ -398,7 +426,7 @@ const LINKS=[
 /* ════════ identity + catalog — tables ════════ */
 const TABLES={identity:[
  ['customer_identities','changed',[['id','uuid pk'],
-  ['customer_reference','CST-000001 · shown all over admin','new'],
+  ['customer_reference','CST- plus six digits · what admin screens show','new'],
   ['phone','NOT NULL UNIQUE — the login identifier','warn'],
   ['email','NULL UNIQUE — optional at signup','warn'],
   ['first_name · last_name','required, step 3','new'],
@@ -411,7 +439,7 @@ const TABLES={identity:[
   ['is_phone_verified','WhatsApp OTP at signup'],
   ['is_email_verified','displayed, but no verification flow exists','bad'],
   ['status','active · suspended','new'],
-  ['suspension_reason · suspension_review_date','GAP-18','new'],
+  ['suspension_reason · suspension_review_date','fraud or abuse reason, authoriser, review date','new'],
   ['last_activity_at','admin list column','new'],
   ['smilemates_card_code','folded in from customer_profiles','new']],
   {t:'warnn',s:'The supplied schema had email NOT NULL and phone nullable. Every screen says the opposite.'}],
@@ -421,13 +449,10 @@ const TABLES={identity:[
   'Policy: 8+, upper, lower, number, special, no spaces. Stricter than the admin policy.'],
  ['admin_identities','changed',[['id','uuid pk'],['name',''],['email','unique · the login identifier'],
   ['phone',''],['employee_code','internal HR reference'],
-  ['status','invited · active · restricted · suspended · disabled','new'],
-  ['access_scope','global · finance_only · support_only · events_only','new'],
+  ['status','invited · active · suspended · disabled','new'],
   ['access_reason','required on the invite form','new'],
-  ['first_login_at','starts the MFA clock','new'],
-  ['mfa_deadline_at','first_login_at + 24h','new'],
   ['created_by','fk → admin_identities']],
-  {t:'warnn',s:'Miss the 24-hour MFA deadline and the account is restricted. That rule exists only in the invite drawer.'}],
+  {t:'warnn',s:'Access scope and the 24-hour MFA deadline are collected by the invite drawer and stored nowhere. No written document carries either, and the documents outrank the design.'}],
  ['identity_invitations','new',[['id','uuid pk'],
   ['admin_id · agent_id','exclusive arc · no customer','ref'],
   ['email','where the link was sent'],
@@ -442,7 +467,7 @@ const TABLES={identity:[
   ['password_hash','BCrypt cost 11'],['failed_login_attempts',''],['locked_until',''],
   ['mfa_required','always true — stored so policy is auditable'],
   ['last_login_at',''],['last_password_changed_at','symmetry with customer','new']],
-  'Policy: 8+, letters and numbers. Weaker than the customer policy — open question 6.'],
+  'Policy: 8+, letters and numbers. The customer policy additionally requires uppercase, lowercase and a special character.'],
  ['admin_sessions','moved in',[['id','uuid pk'],['admin_id','fk · cascade'],
   ['issued_at · expires_at',''],
   ['last_mfa_at','the step-up window · read by access'],
@@ -566,6 +591,86 @@ const TABLES={identity:[
  ['venue_map_rows','new',[['id','uuid pk'],['section_id','fk · cascade'],['label','1 · 2 · 3'],['display_order','']],null],
  ['venue_map_seats','new',[['id','uuid pk'],['row_id','fk · cascade'],['seat_number',''],
   ['seat_type · is_accessible','']],'Template only. Sold or held is a supply fact.']
+],access:[
+ ['roles','changed',[['id','uuid pk'],
+  ['code','finance_admin · support_agent — unique'],
+  ['name · description',''],
+  ['is_system','true for all nine V1 roles · never deleted'],
+  ['risk_level','low · medium · high · very_high','warn'],
+  ['created_by · updated_by','uuid, no fk — admin lives in identity','ref'],
+  ['created_at · updated_at','']],
+  {t:'warnn',s:'The role cards badge very_high as Critical. No document uses that word — the enum follows the document.'}],
+ ['permissions','changed',[['id','uuid pk'],
+  ['code','refund.approve · audit.view — unique'],
+  ['category','nine categories'],
+  ['description',''],
+  ['is_sensitive','eleven of thirty'],
+  ['risk_level','low · medium · high · very_high','new'],
+  ['created_at · updated_at','']],
+  {t:'chk',s:'Thirty seeded codes: the roles document’s 26 canonical ones, plus role.assign_sensitive, admin.view, role.view and event.view. Dropped requires_mfa (it always equalled is_sensitive) and approval_policy (a VARCHAR naming one role cannot express a two-step chain).'}],
+ ['role_permissions','changed',[['role_id','fk → roles · cascade · composite pk'],
+  ['permission_id','fk → permissions · cascade'],
+  ['granted_by','uuid, no fk','ref'],
+  ['granted_at','']],
+  {t:'warnn',s:'scope_rule_json is dropped. Reserved for V2, no screen, and the only scope the platform had is withdrawn from identity.'}],
+ ['admin_user_roles','changed',[['admin_id','uuid, no fk · composite pk','ref'],
+  ['role_id','fk → roles · restrict'],
+  ['is_primary','reporting and UI defaults only — never part of the calculation','warn'],
+  ['assigned_by','uuid, no fk','ref'],
+  ['assigned_at',''],
+  ['expires_at','the invite drawer’s Role Expiry Date']],
+  {t:'chk',s:'Partial unique index on admin_id WHERE is_primary. Exactly one primary role per admin, enforced by the database.'}],
+ ['admin_sensitive_grants','new',[['id','uuid pk'],
+  ['admin_id','uuid, no fk','ref'],
+  ['permission_id','fk → permissions · sensitive only'],
+  ['approval_request_id','fk → approval_requests — the only way a row appears'],
+  ['granted_by','uuid, no fk','ref'],
+  ['granted_at · expires_at',''],
+  ['revoked_at · revoked_by · revoke_reason','']],
+  {t:'badn',s:'No screen grants a permission to a named person. Built because the permission formula is roles PLUS explicit sensitive grants — the documents outrank the design. Seeded empty.'}],
+ ['approval_requests','changed',[['id','uuid pk'],
+  ['reference','APR- plus four digits · unique, gapless','new'],
+  ['request_type','role_grant · refund · mfa_reset · finance_export · api_key_change','warn'],
+  ['requested_by','uuid, no fk','ref'],
+  ['target_type · target_id',''],
+  ['status','pending · approved · rejected'],
+  ['risk_level','high · very_high','new'],
+  ['requires_step_up_mfa','','new'],
+  ['reason','mandatory free text'],
+  ['before_json','state at request time — renders the drawer’s Before','new'],
+  ['payload_json','the change proposed — renders After, applied on approval','new'],
+  ['current_step · total_steps','what Step 2 / 3 renders','new'],
+  ['decided_at · applied_at','approved and applied are different states','new'],
+  ['created_at · updated_at','']],
+  {t:'warnn',s:'The dashboard queue shows a sixth type, Agent Commission Change. No document defines it, so it is not built.'}],
+ ['approval_steps','changed',[['id','uuid pk'],
+  ['approval_request_id','fk → approval_requests · cascade'],
+  ['step_order','unique per request'],
+  ['required_role_id','fk → roles — the role the step awaits','new'],
+  ['approver_id','uuid, no fk · null until decided','ref'],
+  ['decision','nullable · approved · rejected','warn'],
+  ['comment','required on reject'],
+  ['decided_at','nullable','warn'],
+  ['created_at · updated_at','']],
+  {t:'chk',s:'All steps are inserted when the request is created. The supplied schema had decision and decided_at NOT NULL, so nothing could render a pending step or name the role it awaits.'}],
+ ['audit_logs','changed',[['id','uuid pk'],
+  ['customer_actor_id · admin_actor_id · agent_actor_id','exclusive arc · uuid, no fk','ref'],
+  ['is_system_actor','all three null when true'],
+  ['actor_email','snapshot — the record must not change when an email does','new'],
+  ['actor_role_snapshot','roles at the moment of the action'],
+  ['action','order.created · role.assign · refund.approve'],
+  ['action_type','approval · publish · export · update · access','new'],
+  ['module','Finance · Packages · Inventory · Admin · Customers','new'],
+  ['permission_code','set when the action was permission-gated · a documented search filter','new'],
+  ['target_type · target_id',''],
+  ['before_json · after_json','field-limited to what changed'],
+  ['before_label · after_label','the one line the two audit surfaces render','new'],
+  ['summary','the Details sentence','new'],
+  ['risk_level','the Risk column on Audit History','new'],
+  ['approval_request_id','fk → approval_requests · set null'],
+  ['ip_address · user_agent · request_id',''],
+  ['created_at','append-only — no updated_at']],
+  {t:'chk',s:'Moved in from Domain 12. The API database role holds INSERT and SELECT and nothing else — append-only is enforced below the application, not only inside it.'}]
 ]};
 const REFBY={
  customer_identities:['customer_auth_credentials','otp_challenges','challenge_tokens','refresh_tokens'],
@@ -578,13 +683,16 @@ const REFBY={
  event_taxonomy_versions:['events'],
  event_category_attributes:['event_attribute_values'],
  venue_maps:['venue_map_sections'],venue_map_sections:['venue_map_rows'],venue_map_rows:['venue_map_seats'],
- ticket_categories:['ticket_category_translations']
+ ticket_categories:['ticket_category_translations'],
+ roles:['role_permissions','admin_user_roles','approval_steps'],
+ permissions:['role_permissions','admin_sensitive_grants'],
+ approval_requests:['approval_steps','admin_sensitive_grants','audit_logs']
 };
 
 /* ════════ identity + catalog — domain entities ════════ */
 const ENT={identity:[
  ['CustomerIdentity','Aggregate root','blue',['customer_identities','customer_auth_credentials'],
-  [['CustomerId Id',''],['CustomerReference Reference','CST-000001'],
+  [['CustomerId Id',''],['CustomerReference Reference','CST- plus a six-digit sequence'],
    ['PhoneNumber Phone','E.164 · unique · the login identifier'],
    ['EmailAddress? Email','optional · unique where present'],
    ['PersonName Name','first and last, write-once'],
@@ -623,24 +731,21 @@ const ENT={identity:[
   ['AdminInvited','AgentInvited','InvitationResent','OnboardingCompleted']],
  ['AdminIdentity','Aggregate root','purple',['admin_identities','admin_auth_credentials','identity_invitations','admin_sessions'],
   [['AdminId Id',''],['EmailAddress Email','the login identifier'],
-   ['AdminStatus Status','Invited · Active · Restricted · Suspended · Disabled'],
-   ['AccessScope Scope','Global · FinanceOnly · SupportOnly · EventsOnly'],
+   ['AdminStatus Status','Invited · Active · Suspended · Disabled'],
    ['string AccessReason','mandatory on the invite'],
-   ['Instant? FirstLoginAt',''],['Instant? MfaDeadlineAt','first login + 24h'],
    ['Invitation? Invitation','single-use token'],
    ['IReadOnlyList&lt;AdminSession&gt; Sessions','']],
-  [['Invite(name, email, scope, reason)','emails an onboarding link'],
+  [['Invite(name, email, reason)','emails an onboarding link'],
    ['CompleteOnboarding(token, password, mfaCode)','password and MFA together'],
-   ['Restrict()','the 24-hour deadline passed'],
    ['Suspend(actor)','revokes everything immediately'],
    ['Disable()','preserves audit history · never deleted'],
    ['RevokeSession(id, reason)',''],['RevokeAllSessions(reason)',''],
    ['ChangePassword(current, next)','the only change-password surface']],
   ['An admin never self-registers','Not usable until onboarding sets a password and enrols MFA',
-   'No MFA within 24 hours of first login and the account is restricted',
+   'Permissions come from access — this aggregate never decides what an admin may do',
    'Suspension revokes every session and refresh token',
    'Deleted never — disabled'],
-  ['AdminInvited','AdminActivated','AdminRestricted','AdminSuspended','SessionRevoked']],
+  ['AdminInvited','AdminActivated','AdminSuspended','SessionRevoked']],
  ['AgentIdentity','Aggregate root','orange',['agent_identities','agent_auth_credentials','identity_invitations'],
   [['AgentId Id',''],['EmailAddress Email',''],['string CompanyName',''],
    ['AgentAccessStatus Status','Invited · Active · Inactive · Suspended'],
@@ -815,6 +920,90 @@ const ENT={identity:[
   [['FieldSet()','parent attributes plus leaf attributes']],
   ['Submitted as codes, never as labels',
    'The pair is the key — sub-music-festival exists under two parents'],[]]
+],access:[
+ ['Role','Aggregate root','orange',['roles','role_permissions'],
+  [['RoleId Id',''],['RoleCode Code','finance_admin — stable, never renamed'],
+   ['string Name · Description',''],
+   ['bool IsSystem','true for all nine V1 roles'],
+   ['RiskLevel Risk','Low · Medium · High · VeryHigh'],
+   ['IReadOnlySet&lt;PermissionCode&gt; Permissions','seeded from the Final Role Matrix']],
+  [['SetPermissions(codes, actor)','requires role.manage · writes before and after'],
+   ['GrantSensitive(code, actor)','additionally requires role.assign_sensitive'],
+   ['Rename(name, description, actor)',''],
+   ['Delete()','refused for a system role']],
+  ['A system role is never deleted',
+   'Super Admin’s permission set is not editable by anyone',
+   'A non-system role never receives a Super Admin-only permission',
+   'The seeded set matches the Final Role Matrix cell for cell'],
+  ['RoleCreated','RolePermissionsChanged']],
+ ['AdminAccess','Aggregate root','blue',['admin_user_roles','admin_sensitive_grants'],
+  [['AdminId Id','resolved through identity — no foreign key'],
+   ['IReadOnlyList&lt;RoleAssignment&gt; Roles','one primary, any number of additional'],
+   ['IReadOnlyList&lt;SensitiveGrant&gt; Grants','each traceable to an approved request'],
+   ['PermissionSet Effective','computed — roles ∪ grants, after expiry']],
+  [['AssignRoles(roleIds, primary, actor)','raises an approval when a bundle is sensitive'],
+   ['SetPrimary(roleId)','clears the previous primary in the same transaction'],
+   ['RevokeRole(roleId, actor)',''],
+   ['ApplyGrant(request)','the only path that creates a sensitive grant'],
+   ['RevokeGrant(id, reason, actor)',''],
+   ['Has(code)','the enforcement call']],
+  ['Effective permissions are the union of unexpired roles and unrevoked grants',
+   'The primary role never widens or narrows that union',
+   'Combining roles never yields a Super Admin-only permission',
+   'A sensitive permission is held only through an approved grant',
+   'Expiry takes effect at calculation time — no job sits in between',
+   'Exactly one assignment is primary'],
+  ['RolesAssigned','RoleAssignmentExpired','SensitivePermissionGranted','SensitivePermissionRevoked']],
+ ['ApprovalRequest','Aggregate root','pink',['approval_requests','approval_steps'],
+  [['ApprovalId Id',''],['ApprovalReference Reference','APR- plus a four-digit sequence'],
+   ['RequestType Type','five types · not Agent Commission Change'],
+   ['AdminId RequestedBy',''],['TargetRef Target',''],
+   ['RiskLevel Risk',''],['string Reason','mandatory'],
+   ['ChangeSet Before · Proposed','enough to apply without recomputation'],
+   ['IReadOnlyList&lt;ApprovalStep&gt; Steps','created up front from the seeded chain'],
+   ['int CurrentStep · TotalSteps','what Step 2 / 3 renders'],
+   ['Instant? DecidedAt · AppliedAt','approved and applied are different']],
+  [['Raise(type, target, before, proposed, reason)','inserts every step'],
+   ['Approve(step, approver)','requires the step’s role and step-up MFA'],
+   ['Reject(step, approver, comment)','terminates the request'],
+   ['Apply()','once, after the final approval · sets AppliedAt']],
+  ['Steps decide in order, one decision each, never reversed',
+   'The requester never approves their own request',
+   'A rejection at any step terminates the request',
+   'The change applies exactly once, after the last approval',
+   'Application fails if the target moved since Before was captured',
+   'Every state change writes an audit row'],
+  ['ApprovalRequested','ApprovalStepDecided','ApprovalGranted','ApprovalRejected','ApprovalApplied']],
+ ['AuditEntry','Aggregate root','green',['audit_logs'],
+  [['AuditId Id',''],['ActorRef Actor','customer · admin · agent · system — exclusive arc'],
+   ['string ActorEmail · ActorRoleSnapshot','frozen at write time'],
+   ['string Action','order.created · role.assign'],
+   ['ActionType Type','Approval · Publish · Export · Update · Access'],
+   ['ModuleName Module',''],['PermissionCode? Permission',''],
+   ['TargetRef Target',''],
+   ['ChangeSet Before · After','field-limited to what changed'],
+   ['string Summary · BeforeLabel · AfterLabel','what the screens render'],
+   ['RiskLevel Risk',''],['ApprovalId? Approval',''],
+   ['RequestContext Context','ip, user agent, request id']],
+  [['Write(entry)','the only way any module records an action']],
+  ['Append-only — never updated, never deleted by any application path',
+   'Exactly one actor column is set, or the row is a system actor',
+   'Actor email and roles are snapshots, not joins',
+   'No password, MFA secret, card data or customer personal data in a payload',
+   'A failed audit write fails the sensitive action it describes',
+   'Retained at least 24 months for admin, security and finance events'],
+  []],
+ ['Permission','Value object','gray',['permissions'],
+  [['PermissionCode Code','thirty seeded · stable identifiers'],
+   ['string Category','nine categories'],
+   ['bool IsSensitive','eleven of thirty'],
+   ['RiskLevel Risk','from the sensitive-permissions table']],
+  [['RequiresStepUp()','true when sensitive'],
+   ['RequiresApprovedGrant()','true when sensitive']],
+  ['Seeded by migration — no runtime path invents authority',
+   'A code is deprecated, never renamed or reused — audit rows reference it for 24 months',
+   'A new code defaults to granted to no role'],
+  []]
 ]};
 
 const REQS={identity:[
@@ -843,7 +1032,7 @@ const REQS={identity:[
  ["FR-PLAT-CRD-004", "A locked account SHALL remain locked for a configurable period, defaulting to 15 minutes, and SHALL unlock automatically when it expires.", "No admin action required to unlock.", "Platform", "Credentials and lockout"],
  ["FR-PLAT-CRD-005", "The lockout duration and attempt threshold SHALL be changeable by configuration without a code deployment.", "Seeded configuration value.", "Platform", "Credentials and lockout"],
  ["FR-PLAT-CRD-006", "Failed attempts, lockout start and automatic unlock SHALL each emit a domain event.", "Consumed by access for the audit log.", "Platform", "Credentials and lockout"],
- ["FR-PLAT-CRD-007", "A suspended, restricted or disabled identity SHALL be refused a session even when the password is correct.", "Status is checked after verification, not before.", "Platform", "Credentials and lockout"],
+ ["FR-PLAT-CRD-007", "A suspended or disabled identity SHALL be refused a session even when the password is correct.", "Status is checked after verification, not before.", "Platform", "Credentials and lockout"],
  ["FR-PLAT-CRD-008", "Changing a password SHALL record the change time and SHALL revoke every refresh token for that identity.", "Other devices are signed out.", "Platform", "Credentials and lockout"],
  ["FR-PLAT-TOK-001", "The API SHALL issue a short-lived access token and a rotating refresh token on successful authentication.", "Refresh token valid 7 days.", "Platform", "Tokens and sessions"],
  ["FR-PLAT-TOK-002", "Refresh and challenge tokens SHALL be stored hashed; the raw value SHALL exist only in the response.", "A database read must not yield a usable token.", "Platform", "Tokens and sessions"],
@@ -880,7 +1069,7 @@ const REQS={identity:[
  ["FR-PLAT-EVT-105", "Events SHALL carry a stable identifier and version and SHALL be safe to process more than once.", "Consumers deduplicate.", "Platform", "Domain events"],
  ["FR-PLAT-CON-101", "The module SHALL expose an in-process read contract and SHALL NOT allow direct table access from other modules.", "No other module maps an identity table.", "Platform", "Module contract"],
  ["FR-PLAT-CON-102", "The contract SHALL provide GetCustomer, GetCustomersByIds, GetAdmin, GetAgent, IsActive, ResolveActor and GetStepUpState.", "GetCustomersByIds batches to avoid N+1.", "Platform", "Module contract"],
- ["FR-PLAT-CON-103", "IsActive SHALL return false for suspended, restricted and disabled identities.", "Callers do not interpret status themselves.", "Platform", "Module contract"],
+ ["FR-PLAT-CON-103", "IsActive SHALL return false for suspended and disabled identities.", "Callers do not interpret status themselves.", "Platform", "Module contract"],
  ["FR-PLAT-CON-104", "GetStepUpState SHALL return the session's last MFA time and whether it falls inside the configured window.", "access decides the policy; identity supplies the fact.", "Platform", "Module contract"],
  ["FR-PLAT-CON-105", "Cross-schema references SHALL be identifier columns without foreign keys.", "Schema-per-module boundary.", "Platform", "Module contract"],
  ["FR-ADM-USR-001", "The list SHALL return name, email, status, MFA state, last login and creator, and SHALL support search by name or email.", "Matches the screen columns.", "Admin", "Admin accounts"],
@@ -893,14 +1082,12 @@ const REQS={identity:[
  ["FR-ADM-USR-008", "An expired or consumed invitation token SHALL be refused, and re-invitation SHALL issue a new token.", "The old token never revives.", "Admin", "Admin accounts"],
  ["FR-ADM-USR-017", "The list SHALL show outstanding invitations with the invited address, inviter and expiry.", "The *Pending Invitations* counter drills into this.", "Admin", "Admin accounts"],
  ["FR-ADM-USR-018", "An authorised admin SHALL resend or revoke an outstanding invitation.", "Resend kills the previous link.", "Admin", "Admin accounts"],
- ["FR-ADM-USR-009", "The API SHALL record an MFA deadline 24 hours after first login.", "From the invite drawer's banner.", "Admin", "Admin accounts"],
- ["FR-ADM-USR-010", "An account passing its MFA deadline without an enabled enrolment SHALL move to restricted and SHALL be refused a session.", "Requires a scheduled job.", "Admin", "Admin accounts"],
- ["FR-ADM-USR-011", "Completing MFA before the deadline SHALL clear it and publish AdminActivated.", "The deadline is not re-armed.", "Admin", "Admin accounts"],
- ["FR-ADM-USR-012", "Admin status SHALL be one of invited, active, restricted, suspended or disabled.", "Five values.", "Admin", "Admin accounts"],
+ ["FR-ADM-USR-011", "Completing onboarding SHALL publish AdminActivated.", "Password and MFA both done.", "Admin", "Admin accounts"],
+ ["FR-ADM-USR-012", "Admin status SHALL be one of invited, active, suspended or disabled.", "Four values. A fifth, restricted, was withdrawn: it existed only to hold accounts that missed a 24-hour MFA deadline, and that deadline appears only in the invite drawer's banner and in no written document.", "Admin", "Admin accounts"],
  ["FR-ADM-USR-013", "Suspending an admin SHALL revoke every session and refresh token immediately.", "Suspension is not advisory.", "Admin", "Admin accounts"],
  ["FR-ADM-USR-014", "An admin SHALL NOT be deleted; it SHALL be disabled, preserving audit history.", "The supplied schema's intent, kept.", "Admin", "Admin accounts"],
  ["FR-ADM-USR-015", "A signed-in admin SHALL change their own password by supplying the current one.", "The only change-password surface on the platform.", "Admin", "Admin accounts"],
- ["FR-ADM-USR-016", "The admin password policy SHALL require at least 8 characters containing letters and numbers.", "Weaker than the customer policy — see open question 6.", "Admin", "Admin accounts"],
+ ["FR-ADM-USR-016", "The admin password policy SHALL require at least 8 characters containing letters and numbers.", "Weaker than the customer policy, which additionally requires an uppercase letter, a lowercase letter and a special character. Each comes from its own screen's tooltip. Confirm the difference is intentional.", "Admin", "Admin accounts"],
  ["FR-ADM-MFA-001", "The profile SHALL report the account's MFA state and enrolment time.", "Overview and the MFA tab.", "Admin", "MFA administration"],
  ["FR-ADM-MFA-002", "An MFA reset SHALL be raised as a request, not applied directly, when the actor lacks the reset permission.", "The row action reads *Request MFA Reset*.", "Admin", "MFA administration"],
  ["FR-ADM-MFA-003", "Only Super Admin SHALL apply an MFA reset.", "Enforced by access; identity refuses an unapproved reset.", "Admin", "MFA administration"],
@@ -913,10 +1100,10 @@ const REQS={identity:[
  ["FR-ADM-SES-004", "An authorised admin SHALL revoke every session for an account in one action.", "The row menu's *Revoke Sessions*.", "Admin", "Sessions"],
  ["FR-ADM-SES-005", "Revocation SHALL record actor, time and reason and SHALL publish SessionRevoked.", "Never silent.", "Admin", "Sessions"],
  ["FR-ADM-CUS-001", "The customer list SHALL support search by name, email, phone, order or ticket.", "Matches the search placeholder.", "Admin", "Customer administration"],
- ["FR-ADM-CUS-002", "The list SHALL return the customer reference, contact details, country, registration date, last activity and status.", "CST-000001 is displayed everywhere.", "Admin", "Customer administration"],
+ ["FR-ADM-CUS-002", "The list SHALL return the customer reference, contact details, country, registration date, last activity and status.", "The reference is CST- followed by a zero-padded six-digit sequence. It is what admin screens show instead of the internal id.", "Admin", "Customer administration"],
  ["FR-ADM-CUS-003", "The customer profile SHALL return full name, email, phone, country, language, marketing consent, email-verified flag and registration date.", "The Identity & Verification panel.", "Admin", "Customer administration"],
  ["FR-ADM-CUS-004", "The profile SHALL also return the phone-verified flag.", "Phone is the login identifier; its verification state matters more than email's.", "Admin", "Customer administration"],
- ["FR-ADM-CUS-005", "Suspending a customer SHALL require a reason and SHALL record the actor and a review date.", "GAP-18. A boolean is insufficient.", "Admin", "Customer administration"],
+ ["FR-ADM-CUS-005", "Suspending a customer SHALL require a reason and SHALL record the actor and a review date.", "The Admin Business Requirements Package's gap analysis requires a fraud or abuse reason, manager authorisation, an audit entry and a review date. A boolean cannot hold that.", "Admin", "Customer administration"],
  ["FR-ADM-CUS-006", "Suspension SHALL revoke sessions and refresh tokens and SHALL publish CustomerSuspended.", "Immediate effect.", "Admin", "Customer administration"],
  ["FR-ADM-CUS-007", "The API SHALL NOT expose password hashes, OTP hashes, TOTP secrets or token hashes on any admin endpoint.", "No support surface needs them.", "Admin", "Customer administration"],
  ["FR-ADM-AGT-001", "The agents list SHALL report login access state separately from business approval state.", "Active / Inactive against Approved / Pending / Suspended.", "Admin", "Agent accounts"],
@@ -951,8 +1138,8 @@ const REQS={identity:[
  ["FR-PUB-AUT-010", "Setting the new password SHALL consume the challenge token, apply the customer password policy, and revoke every refresh token for the account.", "All devices signed out.", "Customer", "Sign-in and password reset"],
  ["FR-PUB-PRF-001", "The profile endpoint SHALL return the customer's display name and phone number.", "The identity card at the top of the tab.", "Customer", "Profile"],
  ["FR-PUB-PRF-002", "A customer SHALL change their language preference after registration.", "The only identity field editable from the app.", "Customer", "Profile"],
- ["FR-PUB-PRF-003", "Name, phone, email, date of birth, gender, country and city SHALL NOT be editable by the customer.", "No surface exists. Recorded as assumption A6.", "Customer", "Profile"],
- ["FR-PUB-PRF-004", "The API SHALL NOT expose a customer change-password endpoint.", "Reset by OTP is the only route. See open question 9.", "Customer", "Profile"],
+ ["FR-PUB-PRF-003", "Name, phone, email, date of birth, gender, country and city SHALL NOT be editable by the customer.", "Neither the web nor the mobile client has a profile edit screen. These seven fields are write-once at registration; language and appearance are the only settings a customer can change.", "Customer", "Profile"],
+ ["FR-PUB-PRF-004", "The API SHALL NOT expose a customer change-password endpoint.", "Neither client has a change-password screen. Password reset by phone OTP is the only route back into an account. Confirm no change-password surface is planned.", "Customer", "Profile"],
  ["FR-PUB-PRF-005", "The profile response SHALL NOT include the customer's password state, tokens or verification hashes.", "Display data only.", "Customer", "Profile"],
  ["FR-AGT-ONB-001", "An agent SHALL be onboarded by invitation from the admin portal, never by self-registration.", "The admin surface reads *Add / Invite Agent*.", "Agent", "Onboarding"],
  ["FR-AGT-ONB-002", "The invitation SHALL email a single-use onboarding link to the agent's address.", "Same mechanism and same table as an admin invitation.", "Agent", "Onboarding"],
@@ -976,11 +1163,11 @@ const REQS={identity:[
  ["NFR-SEC-102", "Passwords SHALL be stored only as BCrypt hashes at cost 11 and SHALL never be logged, returned or exported.", "Including error paths and debug builds.", "Non-functional", "Security"],
  ["NFR-SEC-103", "OTP codes, refresh tokens and challenge tokens SHALL be stored hashed.", "A database read yields nothing usable.", "Non-functional", "Security"],
  ["NFR-SEC-104", "TOTP secrets SHALL be encrypted at rest with a key from a managed secret store.", "The key SHALL NOT appear in source, config files or environment dumps.", "Non-functional", "Security"],
- ["NFR-SEC-105", "Sign-in, password reset, MFA verification, OTP resend and token refresh SHALL be rate-limited per identifier and per IP address.", "Otp.Net and §13.4 both require it.", "Non-functional", "Security"],
+ ["NFR-SEC-105", "Sign-in, password reset, MFA verification, OTP resend and token refresh SHALL be rate-limited per identifier and per IP address.", "Required independently by the Otp.Net MFA specification and by the Admin Business Requirements Package's authentication section.", "Non-functional", "Security"],
  ["NFR-SEC-106", "Repeated authentication failures SHALL raise an alert.", "Distinguishes one locked user from a credential-stuffing run.", "Non-functional", "Security"],
  ["NFR-SEC-107", "Authentication responses SHALL be constant-time with respect to whether the identifier exists.", "No enumeration by timing or by message.", "Non-functional", "Security"],
  ["NFR-SEC-108", "Write endpoints SHALL validate and reject unexpected fields.", "No mass assignment into an identity aggregate.", "Non-functional", "Security"],
- ["NFR-SEC-109", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "Contract requirement, Annex A7.", "Non-functional", "Security"],
+ ["NFR-SEC-109", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "A vulnerable transitive dependency on the authentication path defeats every control above it.", "Non-functional", "Security"],
  ["NFR-SEC-110", "Search and filter inputs SHALL be parameterised.", "No string-built SQL anywhere.", "Non-functional", "Security"],
  ["NFR-SEC-111", "Access tokens SHALL be short-lived and SHALL carry no permission claims that outlive a revocation.", "Revoking a session must actually stop access.", "Non-functional", "Security"],
  ["NFR-SEC-112", "The exclusive-arc constraint SHALL be enforced by a database CHECK, not only in application code.", "Four shared tables.", "Non-functional", "Security"],
@@ -988,7 +1175,7 @@ const REQS={identity:[
  ["NFR-PRIV-102", "Logs SHALL NOT contain passwords, OTP codes, tokens, TOTP secrets or full phone numbers.", "Mask to the last three digits where a phone must appear.", "Non-functional", "Privacy"],
  ["NFR-PRIV-103", "Date of birth and gender SHALL NOT be returned on any public endpoint.", "Collected at registration, never displayed.", "Non-functional", "Privacy"],
  ["NFR-PRIV-104", "Admin endpoints SHALL return only the identity fields the screen displays.", "No blanket record dumps.", "Non-functional", "Privacy"],
- ["NFR-PRIV-105", "A customer data-retention and deletion policy SHALL be defined before production.", "Marked Missing in GAP-18; recorded as open question 12.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-105", "A customer data-retention and deletion policy SHALL be defined before production.", "The Admin Business Requirements Package's gap analysis marks customer data retention as Missing. No retention period, deletion trigger or anonymisation rule is defined anywhere. Needed from the client.", "Non-functional", "Privacy"],
  ["NFR-PRIV-106", "Marketing consent SHALL be stored with the timestamp it was given.", "Consent without a date is not evidence.", "Non-functional", "Privacy"],
  ["NFR-PERF-101", "Sign-in p95 SHALL be under 400 ms at origin, excluding deliberate hashing cost.", "BCrypt cost 11 dominates; measure around it.", "Non-functional", "Performance"],
  ["NFR-PERF-102", "Token refresh p95 SHALL be under 100 ms.", "On the path of every other request.", "Non-functional", "Performance"],
@@ -1011,7 +1198,7 @@ const REQS={identity:[
  ["NFR-OBS-104", "Every event listed in FR-PLAT-EVT-102 SHALL reach access and SHALL be recorded append-only.", "Identity emits; it never writes audit rows.", "Non-functional", "Observability and audit"],
  ["NFR-OBS-105", "Unhandled exceptions SHALL be reported to error monitoring in every environment.", "Including development.", "Non-functional", "Observability and audit"],
  ["NFR-COMPAT-101", "Web and mobile SHALL use the same endpoints with no client-type branching in business logic.", "The two surfaces run identical flows.", "Non-functional", "Compatibility"],
- ["NFR-COMPAT-102", "The OpenAPI document SHALL be sufficient to generate a Flutter client without manual patching.", "Contract requirement.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-102", "The OpenAPI document SHALL be sufficient to generate a Flutter client without manual patching.", "The mobile client is generated from it. Anything missing becomes hand-written code that drifts from the API.", "Non-functional", "Compatibility"],
  ["NFR-COMPAT-103", "TOTP enrolment SHALL be compatible with standard authenticator applications.", "RFC 6238, 30-second period, 6 digits.", "Non-functional", "Compatibility"],
  ["NFR-COMPAT-104", "Dates SHALL be ISO 8601 with offset.", "No implicit local time.", "Non-functional", "Compatibility"],
  ["NFR-LOC-101", "en, ar and ckb SHALL be supported for every customer-facing message this module triggers.", "ckb, not ku.", "Non-functional", "Localisation"],
@@ -1024,7 +1211,7 @@ const REQS={identity:[
  ["NFR-MAINT-104", "Auth policy values SHALL be seeded configuration, documented in a catalogue, changeable without a deployment.", "Lockout duration, attempt threshold, token lifetimes, step-up window.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-105", "The Otp.Net QA acceptance list SHALL be automated in full.", "Twelve stated criteria.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-106", "Migrations SHALL run clean from an empty database, and seed data SHALL be repeatable.", "Fresh environment in one command.", "Non-functional", "Maintainability"],
- ["NFR-MAINT-107", "CI SHALL run build, tests and migration verification on every push.", "Contract requirement, Annex A1.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-107", "CI SHALL run build, tests and migration verification on every push.", "A migration that only runs on one developer's machine is discovered in staging, not before.", "Non-functional", "Maintainability"],
 ],catalog:[
  ["FR-PLAT-API-001", "The module SHALL expose one versioned REST API with route groups /api/v1/public, /api/v1/admin, /api/v1/agent, all sharing one domain layer.", "No BFF. Route group determines auth and payload shape, not business logic.", "Platform", "API shape"],
  ["FR-PLAT-API-002", "Public routes SHALL require no authentication and SHALL never vary by user.", "A response containing anything user-specific is a defect.", "Platform", "API shape"],
@@ -1172,13 +1359,13 @@ const REQS={identity:[
  ["FR-AGT-BND-004", "Agent event reads SHALL NOT be edge-cached.", "Authenticated requests bypass the CDN.", "Agent", "Boundaries"],
  ["NFR-SEC-001", "All traffic SHALL be HTTPS; HTTP SHALL redirect.", "HSTS on the API domain.", "Non-functional", "Security"],
  ["NFR-SEC-002", "Authorisation SHALL be enforced server-side on every admin and agent endpoint.", "Never rely on hidden UI.", "Non-functional", "Security"],
- ["NFR-SEC-003", "Secrets SHALL come from environment or a secret store, never from source control.", "Contract requirement, Annex A7.", "Non-functional", "Security"],
+ ["NFR-SEC-003", "Secrets SHALL come from environment or a secret store, never from source control.", "A key in git is a key in every clone, forever, including forks and backups.", "Non-functional", "Security"],
  ["NFR-SEC-004", "Write endpoints SHALL validate and reject unexpected fields.", "No mass assignment into aggregates.", "Non-functional", "Security"],
  ["NFR-SEC-005", "Presigned upload URLs SHALL be single-use, scoped to one key, and expire within 15 minutes.", "Prevents open upload endpoints.", "Non-functional", "Security"],
  ["NFR-SEC-006", "Uploaded objects SHALL be stored outside the web root and served only through the CDN.", "No direct bucket access.", "Non-functional", "Security"],
  ["NFR-SEC-007", "Public endpoints SHALL be rate-limited by IP.", "120 requests/minute default.", "Non-functional", "Security"],
  ["NFR-SEC-008", "Admin write endpoints SHALL be rate-limited per account.", "Blunts a compromised token.", "Non-functional", "Security"],
- ["NFR-SEC-009", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "Annex A7.", "Non-functional", "Security"],
+ ["NFR-SEC-009", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "This module is read by every public surface. A compromised dependency here reaches every visitor.", "Non-functional", "Security"],
  ["NFR-SEC-010", "Search and filter inputs SHALL be parameterised.", "No string-built SQL anywhere.", "Non-functional", "Security"],
  ["NFR-PRIV-001", "This module SHALL hold no customer personal data.", "Catalog is reference data.", "Non-functional", "Privacy"],
  ["NFR-PRIV-002", "Admin identifiers on audit records SHALL be identifiers, not names or emails.", "Resolve at read time.", "Non-functional", "Privacy"],
@@ -1205,7 +1392,7 @@ const REQS={identity:[
  ["NFR-OBS-005", "Unhandled exceptions SHALL be reported to error monitoring in every environment.", "Including development.", "Non-functional", "Observability and audit"],
  ["NFR-COMPAT-001", "The API SHALL serve web and mobile clients from the same endpoints with no client-type branching in business logic.", "Shape varies by view, not by client.", "Non-functional", "Compatibility"],
  ["NFR-COMPAT-002", "Additive response changes SHALL NOT break existing clients.", "Clients ignore unknown fields.", "Non-functional", "Compatibility"],
- ["NFR-COMPAT-003", "The OpenAPI document SHALL be sufficient to generate a Flutter client without manual patching.", "Contract requirement.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-003", "The OpenAPI document SHALL be sufficient to generate a Flutter client without manual patching.", "The mobile client is generated from it. Anything missing becomes hand-written code that drifts from the API.", "Non-functional", "Compatibility"],
  ["NFR-COMPAT-004", "Dates SHALL be ISO 8601 with offset; money SHALL carry an explicit currency.", "No implicit local time.", "Non-functional", "Compatibility"],
  ["NFR-COMPAT-005", "Adding a category, subcategory or attribute definition SHALL be an additive release that breaks no existing client.", "Clients render unknown attributes generically or skip them.", "Non-functional", "Compatibility"],
  ["NFR-LOC-001", "en, ar and ckb SHALL be supported end to end, including search.", "ckb, not ku.", "Non-functional", "Localisation"],
@@ -1216,12 +1403,316 @@ const REQS={identity:[
  ["NFR-MAINT-002", "No other module SHALL reference this module's internals; only its contract project.", "Architecture test in CI.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-003", "Publish readiness, status transitions and translation fallback SHALL have automated tests.", "The rules most likely to regress.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-004", "Migrations SHALL run clean from an empty database, and seed data SHALL be repeatable.", "Fresh environment in one command.", "Non-functional", "Maintainability"],
- ["NFR-MAINT-005", "Configuration SHALL come from environment variables, documented in a catalogue.", "Contract requirement, Annex A7.", "Non-functional", "Maintainability"],
- ["NFR-MAINT-006", "CI SHALL run build, tests and migration verification on every push.", "Contract requirement, Annex A1.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-005", "Configuration SHALL come from environment variables, documented in a catalogue.", "An undocumented variable is discovered when a fresh environment fails to boot.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-006", "CI SHALL run build, tests and migration verification on every push.", "A migration that only runs on one developer's machine is discovered in staging, not before.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-007", "The taxonomy SHALL be seeded by migration and SHALL be re-runnable without duplicating rows.", "Nine categories, forty-four subcategories, their attribute definitions and one version row.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-008", "Backend validation of classification and attributes SHALL be at least as strict as the form's, never weaker.", "The form is a convenience; the server is the rule.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-009", "The taxonomy acceptance cases CAT-01 to CAT-12 SHALL be automated.", "Invalid parent/child pairs, missing attributes, booking-model conflicts, concurrent edits.", "Non-functional", "Maintainability"],
+],access:[
+ ["FR-PLAT-PRM-201", "The platform SHALL define permissions as atomic codes in nine categories, seeded by migration and not editable at runtime.", "Dashboard, Admin users and roles, Events and inventory, Orders/bookings/tickets, Finance and refunds, Support and CRM, Marketing and content, Reports and analytics, System and security.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-202", "Thirty permission codes SHALL be seeded: dashboard.view, admin.view, admin.invite, admin.disable, role.view, role.assign, role.manage, role.assign_sensitive, event.view, event.create, event.update, inventory.manage, order.read, booking.update, ticket.resend, finance.view, finance.export, refund.request, refund.approve, payment.reconcile, customer.read, support.case.update, campaign.manage, notification.send, report.view, report.export, audit.view, mfa.reset, settings.update, api.keys.manage.", "The roles document's canonical permission list names 26 of these. role.assign_sensitive comes from its separate sensitive-permissions table. admin.view, role.view and event.view are added because its role matrix grants View on Users, Roles and Events while naming no code for those three reads — and a backend cannot enforce a view it has no code for.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-203", "Each permission SHALL carry a category, a sensitivity flag and a risk level of low, medium, high or very_high.", "Risk values from the sensitive-permissions table.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-204", "Eleven permissions SHALL be marked sensitive: role.manage, role.assign_sensitive, mfa.reset, api.keys.manage and settings.update at very_high risk; admin.invite, admin.disable, finance.export, refund.approve, payment.reconcile and audit.view at high.", "Each requires an approved grant to hold and step-up MFA to exercise.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-205", "Permission codes SHALL be backend constants, and every frontend label SHALL map to one.", "Frontend hiding is UX, not security.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-206", "Nine roles SHALL be seeded, each marked as a system role.", "super_admin through readonly_auditor.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-207", "A system role SHALL NOT be deleted.", "Protected in the domain, not only by convention.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-208", "Each role SHALL carry a risk level of low, medium, high or very_high.", "Displayed as the role card's badge.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-209", "role_permissions SHALL be seeded to match the nine-role, ten-area matrix rendered in this module's Access matrix view. Its ten areas map to codes as — Users: admin.view admin.invite admin.disable; Roles: role.view role.assign role.manage role.assign_sensitive; Events: event.view event.create event.update inventory.manage; Orders: order.read booking.update ticket.resend; Finance: finance.view finance.export payment.reconcile; Refund: refund.request refund.approve; Support: customer.read support.case.update; Reports: report.view report.export; Audit: audit.view; System: settings.update api.keys.manage mfa.reset.", "A matrix score of V takes the read codes, M the writes, A the approve code, R takes refund.request without refund.approve, F takes all. Not seeded from the prototype's role editor, which renders every role identically and fully enabled.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-210", "dashboard.view SHALL be granted to every seeded role.", "Every role reaches the admin home.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-PRM-211", "Seeding SHALL be repeatable and idempotent.", "Re-running a migration SHALL NOT duplicate or orphan a grant.", "Platform", "The permission catalogue"],
+ ["FR-PLAT-CALC-201", "An admin's effective permissions SHALL be the union of the permissions of their unexpired role assignments plus their unrevoked, unexpired sensitive grants.", "The document's stated formula.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-202", "An admin MAY hold more than one role, and holding two roles SHALL grant the union of both.", "Finance Viewer + Support Agent can do both sets.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-203", "The primary role SHALL NOT widen or narrow the calculation.", "Reporting, ownership routing and UI defaults only.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-204", "Exactly one role assignment per admin SHALL be primary.", "Enforced by a partial unique index, not only in application code.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-205", "Combining roles SHALL NOT yield a Super Admin-only permission.", "No hidden escalation.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-206", "A role assignment past its expiry SHALL stop granting immediately, evaluated at calculation time.", "No scheduled job may sit between expiry and effect.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-207", "A sensitive permission SHALL be effective only through an unrevoked sensitive grant, even when a role bundle also contains it.", "Sensitive permissions are not inherited casually from broad operational roles.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-208", "A revoked sensitive grant SHALL stop granting immediately.", "Revocation is not advisory.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-209", "The calculation SHOULD be cached per admin and SHALL be invalidated on any role assignment, role permission, or sensitive grant change.", "A stale cache is a security defect.", "Platform", "Permission calculation"],
+ ["FR-PLAT-CALC-210", "Where a deny rule is introduced in a later version, deny SHALL win over allow for the same permission and scope.", "Stated direction. Not built in V1.", "Platform", "Permission calculation"],
+ ["FR-PLAT-POL-201", "Every protected endpoint SHALL check the authenticated admin, their effective permissions, the required permission code, the sensitivity flag, approval state where required, and recent MFA where required.", "The backend enforces. The frontend only hides.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-202", "A request without the required permission SHALL be refused with 403 and SHALL NOT reveal whether the target record exists.", "No existence disclosure by status code.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-203", "A sensitive action SHALL be refused unless the session's last MFA verification is inside the step-up window of 10 minutes.", "The roles document specifies \"10-15 minutes\"; 10 is the safer end and is what is built.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-204", "The step-up window SHALL be seeded configuration, changeable without a deployment.", "Alongside the other policy values.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-205", "Step-up state SHALL be read from identity through GetStepUpState. This module SHALL NOT own session state.", "admin_sessions lives in identity.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-206", "A refusal for missing step-up SHALL be distinguishable from a refusal for missing permission, so a client can offer re-verification rather than an error.", "Two distinct error codes.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-207", "Only Super Admin SHALL manage role definitions, sensitive grants, MFA resets and security settings.", "The Super Admin boundary.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-208", "Every sensitive action attempt SHALL write an audit row, including refusals.", "Attempts matter as much as successes.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-209", "Access tokens SHALL NOT carry permission claims that survive a role change or a revocation.", "Permissions resolve per request against current state.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-POL-210", "A suspended or disabled identity SHALL resolve to no permissions regardless of its assignments.", "Read from identity.IsActive.", "Platform", "Policy enforcement"],
+ ["FR-PLAT-APR-201", "Five approval types SHALL be supported: role_grant, refund, mfa_reset, finance_export, api_key_change.", "The prototype's dashboard queue shows a sixth, *Agent Commission Change*. No written document defines it, so it is not built.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-202", "Each request SHALL carry a human reference of APR- followed by a zero-padded four-digit sequence — APR-0001, APR-0002 and so on. It SHALL be unique and gapless.", "This is what every approval surface and every audit row shows instead of the internal id, so it must be quotable in an email and stable forever.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-203", "Each request SHALL carry a mandatory free-text reason.", "No approval without a stated cause.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-204", "Each request SHALL store the state before the change and the change it proposes, sufficient to apply it later without recomputation.", "before_json and payload_json. Renders the drawer's Before / After.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-205", "Approval chains SHALL be seeded per request type: role grant → Admin Manager then Super Admin; refund → Finance Admin, plus Super Admin above the threshold; MFA reset, finance export and API key change → Super Admin.", "From the workflow table. One or two steps, never three.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-206", "All steps SHALL be created when the request is created, each carrying its order and its required approver role.", "Nothing else can render *Step 2 / 3* or name the awaited role.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-207", "A request SHALL expose its current step and total steps as stored values.", "Not computed at the client.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-208", "A step SHALL be decidable only by an admin holding its required role, and only when every earlier step is approved.", "Order is enforced.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-209", "The requester SHALL NOT approve their own request at any step.", "Separation of duties.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-210", "A step SHALL be decided once. A decided step SHALL NOT be re-decided or reversed.", "Corrections are a new request.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-211", "Approving a step SHALL require step-up MFA.", "Every approval type is sensitive.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-212", "A rejection at any step SHALL terminate the request as rejected, and later steps SHALL NOT be decidable.", "One no is enough.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-213", "A rejection SHALL require a comment.", "The approval drawer shows no comment field before its Reject button. The roles document requires a documented reason for an MFA reset and a full reason trail for a refund, so a reason is mandatory here. Confirm with the client.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-214", "The proposed change SHALL be applied only after the final step approves, exactly once, recording applied_at.", "Approved and applied are different states.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-215", "Application SHALL be idempotent and SHALL survive a retry without duplicating the change.", "applied_at is the guard.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-216", "A request whose target has changed since creation SHALL fail application and SHALL be recorded as such rather than applying a stale change.", "before_json is the check.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-217", "The refund threshold SHALL be seeded configuration. Below it a refund takes one Finance Admin step; at or above it a second Super Admin step is added.", "The roles document says \"above support threshold\" and \"exceptional value\" and gives no figure. Until the client supplies one, the threshold is unset and every refund takes the single Finance Admin step.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-218", "An approved mfa_reset SHALL publish ApprovalGranted; identity SHALL refuse a reset without it.", "Cross-module gate.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-219", "An approved role_grant for a sensitive permission SHALL create the sensitive grant. It SHALL be the only way one is created.", "The missing screen does not block the mechanism.", "Platform", "The approval engine"],
+ ["FR-PLAT-APR-220", "Every state change on a request — created, each decision, applied — SHALL write an audit row referencing the request.", "The status trail.", "Platform", "The approval engine"],
+ ["FR-PLAT-AUD-201", "The module SHALL expose WriteAudit as the only way any other module records an action. No module SHALL map the audit table.", "One writer, one shape.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-202", "An audit row SHALL carry actor, actor role snapshot, action, action type, module, target type, target id, before, after, IP address, user agent, request id and timestamp.", "The audit spec's required-fields list, plus the two columns the screens display.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-203", "Exactly one of customer, admin or agent actor SHALL be set, or the row SHALL be marked a system actor.", "Exclusive arc, enforced by a database CHECK.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-204", "The actor's email and roles SHALL be snapshotted at write time.", "The record must not change when an email or a role does.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-205", "Action type SHALL be one of approval, publish, export, update, access.", "The Audit Log's filter.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-206", "Each row SHALL carry the owning module and, where the action was permission-gated, the permission code.", "The audit spec requires filtering by permission.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-207", "Each row SHALL carry a risk level and, where an approval governed it, the approval request reference.", "Both are columns on the Audit History tab.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-208", "Each row SHALL carry a one-line summary and one-line before and after labels, stored at write time.", "What the two audit surfaces render. Generating them at read time would let the record change.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-209", "The following SHALL be logged: sign-in, MFA success and failure, role assignment, permission change, admin invite and disable, refund actions, exports, settings updates, API key changes and data corrections.", "The audit spec's events list.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-210", "Audit rows SHALL be append-only. No application path SHALL update or delete one.", "Corrections are new rows.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-211", "The database role used by the API SHALL hold no UPDATE or DELETE privilege on the audit table.", "Enforced below the application, not only inside it.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-212", "Audit search SHALL support actor, target, action, action type, module, date range, permission, role, IP address, approval reference and risk.", "The screen filters on six of eleven. The API supplies all.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-213", "Audit rows SHALL be retained for at least 24 months for admin, security and finance events.", "Longer where policy requires.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-214", "Audit payloads SHALL NOT contain passwords, MFA secrets, payment card data or customer personal data beyond the identifier needed to name the target.", "The audit spec's privacy rule.", "Platform", "The audit engine"],
+ ["FR-PLAT-AUD-215", "An audit write failure SHALL fail the action it describes for access-control changes and sensitive actions.", "An unlogged sensitive action must not happen.", "Platform", "The audit engine"],
+ ["FR-PLAT-EVT-201", "The module SHALL publish RoleCreated, RolePermissionsChanged, RolesAssigned, RoleAssignmentExpired, SensitivePermissionGranted, SensitivePermissionRevoked, ApprovalRequested, ApprovalStepDecided, ApprovalGranted, ApprovalRejected, ApprovalApplied, SensitiveActionAttempted and PermissionDenied.", "The full set.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-202", "Events SHALL be published through a transactional outbox, in the same transaction as the change they describe.", "No lost event, no phantom event.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-203", "The module SHALL consume every event identity publishes and record it as an audit row.", "Identity emits; it never writes audit rows itself.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-204", "ApprovalRequested SHALL carry the required approver role so notifications can route the alert without a callback.", "Fan-out without a read.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-205", "Consumers SHALL be idempotent; duplicate delivery SHALL NOT produce a duplicate audit row.", "The outbox is at-least-once.", "Platform", "Domain events"],
+ ["FR-PLAT-CON-201", "The module SHALL expose HasPermission, GetEffectivePermissions, IsSensitive, RequireStepUp, RequestApproval, GetApprovalState, WriteAudit, GetRole and GetRolesByIds.", "The whole surface other modules see.", "Platform", "The module contract"],
+ ["FR-PLAT-CON-202", "No module SHALL reference this module's internals; only its contract project.", "Architecture test in CI.", "Platform", "The module contract"],
+ ["FR-PLAT-CON-203", "HasPermission SHALL be safe to call on every request without a database read on the common path.", "It sits in front of every protected endpoint.", "Platform", "The module contract"],
+ ["FR-PLAT-CON-204", "The module SHALL hold no foreign key to another schema. Admin references SHALL be unconstrained UUIDs resolved through identity.", "One schema, one DbContext.", "Platform", "The module contract"],
+ ["FR-PLAT-CON-205", "Admin names and emails for display SHALL be resolved in batch through identity.GetAdminsByIds.", "No row-by-row lookup on a list screen.", "Platform", "The module contract"],
+ ["FR-PLAT-API-201", "Admin endpoints SHALL sit under the /admin route group of the one versioned REST API.", "No BFF.", "Platform", "API conventions"],
+ ["FR-PLAT-API-202", "List endpoints SHALL be paged, and SHALL return total counts separately from the page.", "The counter cards.", "Platform", "API conventions"],
+ ["FR-PLAT-API-203", "Validation failures SHALL return field-level, machine-readable errors.", "So a client can point at the field.", "Platform", "API conventions"],
+ ["FR-PLAT-API-204", "No endpoint here SHALL be edge-cacheable.", "Everything is per-actor and security-relevant.", "Platform", "API conventions"],
+ ["FR-PLAT-API-205", "Every endpoint SHALL be described in OpenAPI, including the permission code it requires.", "The permission becomes documentation.", "Platform", "API conventions"],
+ ["FR-ADM-ROL-201", "The roles list SHALL return each role's name, description, risk level, permission-area summary, assigned admin count and last-updated timestamp.", "Matches the card.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-202", "The assigned admin count SHALL be computed from current assignments, excluding expired ones.", "The card reads \"2 admins\".", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-203", "The API SHALL return all nine roles regardless of the caller, provided the caller holds role.view.", "The list is not itself sensitive.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-204", "Viewing a role SHALL require role.view; editing SHALL require role.manage.", "Two codes, two gates.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-205", "Risk level SHALL be returned as low, medium, high or very_high.", "The client renders very_high as *Critical*.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-206", "The role editor SHALL return every permission grouped by category, each with its sensitivity flag and whether the role holds it.", "Thirty codes, nine groups.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-207", "Changing a role's permission set SHALL require role.manage, which is sensitive and therefore requires an approved grant and step-up MFA.", "Role definitions can change the entire access model.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-208", "Granting a sensitive permission to a role SHALL additionally require role.assign_sensitive.", "A separate controlled workflow.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-209", "A permission change SHALL write an audit row carrying the full before and after permission sets.", "Before and after snapshots are required for role actions.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-210", "A system role SHALL NOT be deleted, and the API SHALL refuse the attempt rather than hiding the control.", "Backend enforcement.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-211", "Super Admin's permission set SHALL NOT be editable by any actor.", "It is the platform access owner by definition.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ROL-212", "Creating a new role SHALL require role.manage and SHALL mark the role as non-system.", "The nine seeded roles stay protected.", "Admin", "Roles and permissions"],
+ ["FR-ADM-ASG-201", "An admin SHALL be assignable one primary role and any number of additional roles.", "The invite drawer and the Assign Roles action.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-202", "Assigning a role SHALL require role.assign.", "Admin Manager holds it; Operations Manager does not.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-203", "Assigning a role whose bundle contains a sensitive permission SHALL raise an approval request rather than applying immediately.", "Sensitive role grant workflow.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-204", "Each assignment SHALL record who assigned it and when, and MAY carry an expiry.", "The drawer's *Role Expiry Date*.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-205", "Exactly one assignment per admin SHALL be primary; setting a new primary SHALL clear the previous one in the same transaction.", "Never two, never none.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-206", "Removing an admin's last role SHALL be permitted and SHALL leave them with dashboard.view only.", "An admin with no role is not an error.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-207", "Assignment and revocation SHALL write audit rows carrying the before and after role sets.", "Access changes are traceable.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-208", "A role assignment SHALL NOT be created for a suspended or disabled identity.", "Checked through identity.IsActive.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-209", "The admin profile SHALL return the admin's effective permissions grouped by category, each flagged sensitive or not.", "The chips on the Roles & Permissions tab.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-210", "The profile SHALL return the highest risk level among the admin's effective permissions.", "Drives *\"This admin holds critical-risk permissions.\"*", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-211", "The profile SHALL distinguish a permission held through a role from one held through a sensitive grant.", "Two different revocation paths.", "Admin", "Role assignment"],
+ ["FR-ADM-ASG-212", "Support Agent SHALL hold order.read, booking.update, ticket.resend, customer.read and support.case.update without row-level restriction in V1.", "The Final Role Matrix scores Support Agent O on Orders and Support, meaning own or assigned cases only. The same document defers all scoped access to a later version and marks its scope column reserved for V2. Nothing defines who assigns a case, where the assignment is stored, or on what screen. Unscoped, O and M grant the same codes, so Support Agent and Support Lead are indistinguishable on Orders and Support in V1. Confirm with the client.", "Admin", "Role assignment"],
+ ["FR-ADM-SEN-201", "A sensitive permission SHALL be granted to a named admin only through an approved approval request.", "No direct write path exists.", "Admin", "Sensitive grants"],
+ ["FR-ADM-SEN-202", "A sensitive grant SHALL record the approving request, who granted it, when, and any expiry.", "Full provenance.", "Admin", "Sensitive grants"],
+ ["FR-ADM-SEN-203", "A sensitive grant SHALL be revocable, recording who revoked it, when and why.", "Revocation takes effect on the next permission calculation.", "Admin", "Sensitive grants"],
+ ["FR-ADM-SEN-204", "The API SHALL list an admin's sensitive grants with their source request.", "No prototype screen renders this, and none grants a permission to a named admin either. The endpoint exists because the permission formula requires explicit grants. The missing screen is a design gap to raise.", "Admin", "Sensitive grants"],
+ ["FR-ADM-SEN-205", "An expired sensitive grant SHALL stop granting without a job running.", "Evaluated at calculation time.", "Admin", "Sensitive grants"],
+ ["FR-ADM-APR-201", "The list SHALL return reference, type, requester, target, reason, risk, required approver role, status and creation time.", "Matches the table columns.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-202", "The list SHALL be filterable by status and type, and SHALL return a count of requests awaiting the caller.", "The tab badge and the counter card.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-203", "Status SHALL be pending, approved or rejected; a pending request SHALL additionally report the role its current step awaits.", "*Awaiting Finance*, *Awaiting Admin*, *Awaiting SuperAdmin*.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-204", "A pending request whose current step the caller may decide SHALL report whether step-up MFA is outstanding for that caller.", "The *MFA Required* badge is per-viewer, not per-request.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-205", "Viewing the Approval Center SHALL require at least one approver role; it SHALL NOT be visible to roles that approve nothing.", "Support Agent sees no queue.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-206", "The detail view SHALL return requester, target, reason, required approver role, creation time, the state before and the change proposed.", "The drawer, top to bottom.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-207", "The detail view SHALL return every step in order with its required role, decision, decider and decision time.", "The workflow timeline.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-208", "Approving SHALL require the step's required role, an unbroken chain of earlier approvals, and step-up MFA within the window.", "Three conditions, all backend.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-209", "The API SHALL refuse an approval by the requester.", "Separation of duties.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-210", "Rejecting SHALL require a comment and SHALL terminate the request.", "The approval drawer shows no comment field before its Reject button. A reason is required here because the roles document demands a documented reason for MFA resets and a full reason trail for refunds. Confirm with the client.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-211", "Approving the final step SHALL apply the change and record applied_at in the same transaction.", "Approved is not applied.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-212", "A decision SHALL be refused if the request is no longer pending.", "Two approvers racing resolve to one decision.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-213", "Every decision SHALL write an audit row referencing the request.", "The status trail.", "Admin", "Approval Center"],
+ ["FR-ADM-APR-214", "The admin profile SHALL return approval requests where the admin is the requester, an approver or the target.", "*Approval Requests Involving This Admin*.", "Admin", "Approval Center"],
+ ["FR-ADM-AUD-201", "The log SHALL return timestamp, actor email, action, action type, module, affected record and summary.", "Matches the columns.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-202", "The log SHALL be filterable by admin user, action type, module, date range and affected record.", "The six controls on the screen.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-203", "The log SHALL additionally be filterable by permission, role, IP address, approval reference and risk.", "The roles document's audit section requires all eleven filters. The Audit Log screen offers six — admin user, action type, module, date from, date to, affected record. The API supplies the full set; the screen is behind.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-204", "The log SHALL be paged, ordered newest first, and SHALL remain responsive at production volume.", "The largest table on the platform.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-205", "Viewing the log SHALL require audit.view, which is sensitive: holding it requires an approved grant, exercising it requires step-up MFA.", "The roles document appears to contradict itself — its sensitive-permissions table requires Super Admin approval for audit.view, while its Final Role Matrix gives Admin Manager and Read-only Auditor a plain View. Both hold once approval is read as gating the grant rather than each read, which is what its approval-workflow section states: apply the permission only after approval.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-206", "Reading the audit log SHALL itself write an audit row of action type access.", "Who read the log is part of the log.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-207", "The log SHALL be exportable by an actor holding audit.view, and the export SHALL record its filters, row count, requester and IP.", "No export control exists yet. Same logging rule as a finance export.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-208", "An export SHALL NOT include before or after payloads unless the requester holds audit.view and the export is separately justified.", "Payloads are the most sensitive part of the row.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-209", "The per-admin history SHALL return action, target, before label, after label, actor, time, IP address, risk and approval reference.", "Matches the tab's nine columns.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-210", "The per-admin history SHALL cover actions the admin performed and actions performed against them.", "Both directions; the tab shows both.", "Admin", "Audit Log"],
+ ["FR-ADM-AUD-211", "Viewing another admin's history SHALL require audit.view.", "The Audit History tab appears on every admin profile with no permission of its own. Treated as the same permission as the global log until the client says otherwise.", "Admin", "Audit Log"],
+ ["FR-ADM-DSH-201", "The dashboard SHALL return the count of approval requests awaiting the caller and a preview list of them.", "The *Pending Approvals* card and widget.", "Admin", "Dashboard"],
+ ["FR-ADM-DSH-202", "Each preview row SHALL carry type, requester, current step, total steps and the awaited role or the step-up prompt.", "*Step 2 / 3 · Awaiting Finance*.", "Admin", "Dashboard"],
+ ["FR-ADM-DSH-203", "The dashboard SHALL return a recent-audit strip of actor, action, target, module and relative time.", "Seven rows, newest first.", "Admin", "Dashboard"],
+ ["FR-ADM-DSH-204", "Both SHALL be scoped to what the caller may see, and SHALL be empty rather than refused for a caller with neither permission.", "An empty widget, not a 403 on the dashboard.", "Admin", "Dashboard"],
+ ["FR-ADM-OUT-201", "api.keys.manage SHALL exist as a permission and api_key_change as an approval type; no key registry SHALL be built.", "The roles document's approval-workflow section requires storing masked values and logging the key id, integration name and reason — that is a record of the change, not a key store. No prototype screen manages keys. Where keys live is a client question.", "Admin", "Not built in V1"],
+ ["FR-ADM-OUT-202", "Scoped access — by event group, country, brand, department or supplier — SHALL NOT be built in V1.", "Deferred by the same document that requests it.", "Admin", "Not built in V1"],
+ ["FR-ADM-OUT-203", "*Agent Commission Change* SHALL NOT be an approval type in V1.", "It appears in the prototype's dashboard approval queue and in no written document. Per-agent commission is separately unresolved between the supplied schema, which hardcodes the rate, and the Agents screen, which varies it per agent. Confirm with the client before building either.", "Admin", "Not built in V1"],
+ ["FR-PUB-AUD-201", "Customer actions with a lasting effect SHALL be recorded as audit rows with the customer actor column set.", "Registration, suspension, order placement, refund request.", "Customer", "Customers as audit actors"],
+ ["FR-PUB-AUD-202", "A customer audit row SHALL carry no role snapshot, because customers hold no roles.", "The column stays null rather than carrying a placeholder.", "Customer", "Customers as audit actors"],
+ ["FR-PUB-AUD-203", "Customer audit payloads SHALL NOT contain personal data beyond the customer reference needed to name the target.", "The audit spec's privacy rule. No phone, email, date of birth or address in a payload.", "Customer", "Customers as audit actors"],
+ ["FR-PUB-AUD-204", "No public endpoint SHALL return audit rows, permission codes, role names or approval requests.", "The whole module is admin-facing.", "Customer", "Customers as audit actors"],
+ ["FR-PUB-AUD-205", "A permission denial SHALL never be returned to a customer surface, because no customer endpoint is permission-gated.", "A 403 on a public route is a routing defect, not an authorisation outcome.", "Customer", "Customers as audit actors"],
+ ["FR-PUB-APR-201", "A customer SHALL NOT create, view or influence an approval request.", "A customer-initiated refund becomes an admin refund.request, raised by the handling admin.", "Customer", "Actions customers trigger elsewhere"],
+ ["FR-PUB-APR-202", "Where a customer action results in an approval request, the customer SHALL be told the outcome only, never the approval chain, approver identities or internal reasons.", "Through notifications, not from this module.", "Customer", "Actions customers trigger elsewhere"],
+ ["FR-AGT-AUD-201", "Agent actions with a lasting effect SHALL be recorded as audit rows with the agent actor column set.", "Listing created, listing withdrawn, payout requested, terms accepted.", "Agent", "Agents as audit actors"],
+ ["FR-AGT-AUD-202", "An agent audit row SHALL carry no role snapshot. Agents hold no roles.", "Same treatment as customers.", "Agent", "Agents as audit actors"],
+ ["FR-AGT-AUD-203", "No agent endpoint SHALL return audit rows, permission codes, role names or approval requests.", "The agent sees outcomes, never the mechanism.", "Agent", "Agents as audit actors"],
+ ["FR-AGT-AUD-204", "Agent surfaces SHALL be scoped by ownership of the record, enforced in the query, not by a permission check.", "An agent's own data is not a permission concept.", "Agent", "Agents as audit actors"],
+ ["FR-AGT-APR-201", "Agent inventory submissions SHALL be gated by supply_agent's own review state, not by this module's approval engine.", "Two different mechanisms. Do not conflate them.", "Agent", "The approval gate over agent supply"],
+ ["FR-AGT-APR-202", "Where an admin's decision on an agent submission is permission-gated, the permission SHALL come from this module and the decision SHALL be audited here.", "The gate lives there; the authority and the record live here.", "Agent", "The approval gate over agent supply"],
+ ["FR-AGT-APR-203", "An agent SHALL be told the outcome of a submission review, never the reviewing admin's identity or internal notes.", "Through notifications.", "Agent", "The approval gate over agent supply"],
+ ["FR-AGT-APR-204", "*Agent Commission Change* SHALL NOT be an approval type in V1.", "It appears in the prototype's dashboard approval queue and in no written document, and the written documents outrank the design.", "Agent", "The approval gate over agent supply"],
+ ["FR-AGT-MFA-201", "Agent MFA and step-up belong to identity. This module SHALL NOT define agent authentication behaviour.", "The MFA rules cover everyone with admin dashboard or access-control access; agents have neither.", "Agent", "Agent MFA"],
+ ["NFR-SEC-201", "All traffic SHALL be HTTPS; HTTP SHALL redirect.", "HSTS on the API domain.", "Non-functional", "Security"],
+ ["NFR-SEC-202", "Authorisation SHALL be enforced on the server for every protected endpoint. Hiding a control in the client SHALL NOT be treated as a control.", "A hidden button is a usability affordance. The endpoint behind it is still reachable by anyone who can read the network tab.", "Non-functional", "Security"],
+ ["NFR-SEC-203", "The default for an endpoint with no declared permission SHALL be denial, not access.", "Fail closed. A new endpoint is unreachable until someone names its permission.", "Non-functional", "Security"],
+ ["NFR-SEC-204", "An architecture test SHALL fail the build when a protected endpoint declares no permission code.", "Catches the omission before it ships.", "Non-functional", "Security"],
+ ["NFR-SEC-205", "Permission checks SHALL resolve against current state on every request; no permission SHALL be cached in a token.", "Revoking a role must stop access immediately.", "Non-functional", "Security"],
+ ["NFR-SEC-206", "A sensitive action SHALL require the permission and a recent MFA verification, independently checked.", "Two conditions, not one.", "Non-functional", "Security"],
+ ["NFR-SEC-207", "The step-up window SHALL be 10 minutes and SHALL be enforced server-side against the session's stored last MFA time.", "Never against a client-supplied timestamp.", "Non-functional", "Security"],
+ ["NFR-SEC-208", "Approval decisions SHALL be rate-limited per actor.", "A compromised approver should not clear a queue.", "Non-functional", "Security"],
+ ["NFR-SEC-209", "Requests SHALL be refused if the caller's identity is suspended, restricted or disabled, regardless of assignments.", "Checked through identity.IsActive.", "Non-functional", "Security"],
+ ["NFR-SEC-210", "Search and filter inputs on the audit log SHALL be parameterised.", "The largest, most attacker-interesting table on the platform.", "Non-functional", "Security"],
+ ["NFR-SEC-211", "Write endpoints SHALL validate and reject unexpected fields.", "No mass assignment into a role or a grant.", "Non-functional", "Security"],
+ ["NFR-SEC-212", "The exclusive-arc constraint on audit actors SHALL be enforced by a database CHECK, not only in application code.", "Same pattern as identity's shared tables.", "Non-functional", "Security"],
+ ["NFR-SEC-213", "The database role used by the API SHALL hold INSERT and SELECT on the audit table and nothing else.", "Append-only enforced below the application.", "Non-functional", "Security"],
+ ["NFR-SEC-214", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "This module is the authorisation boundary. A compromised dependency here defeats every control on the platform.", "Non-functional", "Security"],
+ ["NFR-SEC-215", "Seed migrations SHALL be the only path that creates a system role or a permission code.", "No runtime path invents authority.", "Non-functional", "Security"],
+ ["NFR-PRIV-201", "Audit payloads SHALL NOT contain passwords, MFA secrets, payment card data or customer personal data beyond the identifier needed to name the target.", "The audit spec's privacy rule, verbatim.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-202", "Before and after snapshots SHALL be field-limited to what changed.", "A whole-record dump into an audit row is a data leak with a long retention period.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-203", "Audit rows SHALL retain the actor's email and role as they were at the time of the action, and SHALL NOT be rewritten when either changes.", "Snapshot, not join.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-204", "Access to the audit log SHALL itself be logged.", "Who read the record is part of the record.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-205", "Audit exports SHALL record filters, row count, requester and IP address.", "Same treatment the documents give a finance export.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-206", "Logs SHALL NOT contain permission decisions with full request payloads.", "Log the code and the outcome, not the body.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-207", "A disposal policy SHALL be defined for audit data beyond its retention period before production.", "The roles document requires at least 24 months for admin, security and finance events and says nothing about what happens after. Needed from the client.", "Non-functional", "Privacy"],
+ ["NFR-PERF-201", "HasPermission p95 SHALL be under 5 ms and SHALL NOT require a database read on the common path.", "It runs in front of every protected endpoint on the platform.", "Non-functional", "Performance"],
+ ["NFR-PERF-202", "The effective-permission set SHALL be cached per admin and invalidated on any assignment, role-permission or grant change.", "Correctness before speed: a stale cache is a security defect, so invalidation is synchronous.", "Non-functional", "Performance"],
+ ["NFR-PERF-203", "WriteAudit SHALL NOT add more than 10 ms to the action it records.", "It is on the write path of every module.", "Non-functional", "Performance"],
+ ["NFR-PERF-204", "Audit log queries filtered by date range and actor SHALL return the first page in under 500 ms at 50 million rows.", "Requires covering indexes and time-based partitioning.", "Non-functional", "Performance"],
+ ["NFR-PERF-205", "The Approval Center list SHALL resolve requester and target names in batch.", "One GetAdminsByIds per page, not one per row.", "Non-functional", "Performance"],
+ ["NFR-PERF-206", "Seeding thirty permissions, nine roles and the full role matrix SHALL complete in under 5 seconds.", "It runs on every fresh environment.", "Non-functional", "Performance"],
+ ["NFR-SCAL-201", "The API SHALL be stateless and horizontally scalable; the permission cache SHALL be shared, not per-process.", "Two instances must not disagree about a revocation.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-202", "The audit table SHALL be partitioned by time from the first migration.", "Retrofitting partitioning to a live audit table is a migration nobody wants.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-203", "Audit indexes SHALL cover actor, target, action type, module, approval reference, IP address and timestamp.", "The eleven documented filters, servable.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-204", "Audit writes SHALL sustain the platform's peak write rate during an on-sale without back-pressuring the actions they record.", "Every module writes here at once.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-205", "Outbox dispatch SHALL be a background worker safe to run concurrently and safe under duplicate delivery.", "At-least-once, idempotent consumers.", "Non-functional", "Scalability"],
+ ["NFR-AVAIL-201", "Permission resolution SHALL target 99.9% monthly availability.", "Nothing in the admin panel works without it.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-202", "If permission resolution cannot complete, the request SHALL be refused, never allowed.", "Degrade closed.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-203", "An audit write failure SHALL fail the access-control change or sensitive action it describes.", "An unlogged sensitive action must not have happened.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-204", "An audit write failure SHALL NOT fail a routine read.", "Proportionate.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-205", "The database SHALL have automated backups with point-in-time recovery.", "RPO ≤ 15 min, RTO ≤ 4 h.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-206", "Migrations SHALL be backward-compatible within a release.", "Expand, migrate, contract.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-207", "Adding a permission code SHALL NOT require downtime, and SHALL default to granted to no role.", "New authority starts at zero.", "Non-functional", "Availability"],
+ ["NFR-OBS-201", "Logs SHALL be structured and carry a correlation identifier shared with the audit row's request_id.", "One trace, request to audit row.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-202", "The module SHALL expose liveness and readiness endpoints; readiness SHALL check the database and outbox lag.", "Standard across modules.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-203", "Permission denials, step-up refusals, approval decisions and audit write failures SHALL be metrics with alerts.", "A spike in denials is either a misconfiguration or an attack.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-204", "A sensitive action attempt SHALL be logged whether it succeeded or was refused.", "Attempts are the signal.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-205", "Any UPDATE or DELETE attempted against the audit table SHALL raise an alert.", "It should be impossible; if it happens, someone needs to know.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-206", "Approval requests pending beyond a configured age SHALL be reported.", "The dashboard shows \"3 overdue\" for agent submissions; approvals need the same.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-207", "Unhandled exceptions SHALL be reported to error monitoring in every environment.", "Including development.", "Non-functional", "Observability and audit"],
+ ["NFR-COMPAT-201", "Permission codes SHALL be stable identifiers. A code SHALL be deprecated, never renamed or reused.", "Audit rows reference them for 24 months.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-202", "The OpenAPI document SHALL name the permission each endpoint requires.", "The permission model becomes machine-readable documentation.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-203", "Dates SHALL be ISO 8601 with offset.", "No implicit local time in an audit record.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-204", "Approval reference format APR-0000 SHALL be stable and SHALL survive re-sequencing.", "It appears in audit rows and in notifications.", "Non-functional", "Compatibility"],
+ ["NFR-LOC-201", "Role names, permission descriptions and category names SHALL be presentable in en, ar and ckb.", "The admin panel receives all three.", "Non-functional", "Localisation"],
+ ["NFR-LOC-202", "Permission and role codes SHALL NOT be translated.", "Codes are identifiers; only labels are language.", "Non-functional", "Localisation"],
+ ["NFR-LOC-203", "Audit action, summary, before_label and after_label SHALL be stored in one canonical language and translated for display, never re-translated in place.", "Rewriting a stored audit string breaks append-only.", "Non-functional", "Localisation"],
+ ["NFR-LOC-204", "Reasons and comments SHALL be stored as UTF-8 with correct collation for Arabic script.", "Free text, entered in any of the three.", "Non-functional", "Localisation"],
+ ["NFR-MAINT-201", "The module SHALL own one schema and one DbContext, and SHALL map no table outside it.", "Enforced by an architecture test.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-202", "The module SHALL hold no foreign key to another schema.", "Admin references are unconstrained UUIDs.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-203", "No other module SHALL reference this module's internals; only its contract project.", "Architecture test in CI.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-204", "No other module SHALL write an audit row except through WriteAudit.", "One writer, one shape, one place to change it.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-205", "The permission catalogue, the role matrix and the approval chains SHALL live in seed migrations, in one file each, reviewable as a diff.", "The access model should be readable in a pull request.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-206", "Policy values — step-up window, refund threshold, audit retention, pending-approval age — SHALL be seeded configuration changeable without a deployment.", "Documented in a catalogue alongside identity's.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-207", "Every role SHALL be tested against its allowed and blocked endpoints, including multi-role combinations.", "The document's own QA requirement.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-208", "A test SHALL assert that no combination of non-Super-Admin roles yields a Super Admin-only permission.", "The escalation check, automated.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-209", "A test SHALL assert that the seeded role_permissions matches the Final Role Matrix cell for cell.", "The matrix is the specification; the test is its enforcement.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-210", "Migrations SHALL run clean from an empty database, and seed data SHALL be repeatable.", "Fresh environment in one command.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-211", "CI SHALL run build, tests and migration verification on every push.", "The role-matrix and escalation tests are the ones that must never be skipped.", "Non-functional", "Maintainability"],
 ]};
+
+/* ════════ access — the role / permission matrix ════════ */
+/* areas: r read · w write · a approve · q request. Scores: F=r+w+a+q · M=r+w · A=r+a · V=r · R=q · O=r+w (unscoped in V1) · N=none */
+const MTX={access:{
+ legend:[['F','full control'],['M','manage'],['A','approve'],['V','view'],
+         ['R','request or escalate'],['O','own or assigned cases only'],['N','no access']],
+ areas:[
+  ['Users',   {r:['admin.view'], w:['admin.invite','admin.disable'], a:[], q:[]}],
+  ['Roles',   {r:['role.view'],  w:['role.manage','role.assign_sensitive'], a:['role.assign'], q:[]}],
+  ['Events',  {r:['event.view'], w:['event.create','event.update','inventory.manage'], a:[], q:[]}],
+  ['Orders',  {r:['order.read'], w:['booking.update','ticket.resend'], a:[], q:[]}],
+  ['Finance', {r:['finance.view'], w:['finance.export','payment.reconcile'], a:[], q:[]}],
+  ['Refund',  {r:[], w:[], a:['refund.approve'], q:['refund.request']}],
+  ['Support', {r:['customer.read'], w:['support.case.update'], a:[], q:[]}],
+  ['Reports', {r:['report.view'], w:['report.export'], a:[], q:[]}],
+  ['Audit',   {r:['audit.view'], w:[], a:[], q:[]}],
+  ['System',  {r:[], w:['settings.update','api.keys.manage','mfa.reset'], a:[], q:[]}]
+ ],
+ always:['dashboard.view'],
+ unmapped:['campaign.manage','notification.send'],
+ perms:{
+  'dashboard.view':['Dashboard',0,'low','View the admin dashboard summary'],
+  'admin.view':['Admin users and roles',0,'low','Read the admin user list and profiles'],
+  'admin.invite':['Admin users and roles',1,'high','Invite a new admin user'],
+  'admin.disable':['Admin users and roles',1,'high','Disable an admin user'],
+  'role.view':['Admin users and roles',0,'low','Read role definitions'],
+  'role.assign':['Admin users and roles',0,'medium','Assign approved roles to admin users'],
+  'role.manage':['Admin users and roles',1,'very_high','Create, update or delete roles and permissions'],
+  'role.assign_sensitive':['Admin users and roles',1,'very_high','Assign a sensitive permission'],
+  'event.view':['Events and inventory',0,'low','Read events, categories and inventory'],
+  'event.create':['Events and inventory',0,'medium','Create event records'],
+  'event.update':['Events and inventory',0,'medium','Update event details, categories or visibility'],
+  'inventory.manage':['Events and inventory',0,'medium','Manage ticket inventory and availability state'],
+  'order.read':['Orders, bookings, tickets',0,'low','Read order and booking records'],
+  'booking.update':['Orders, bookings, tickets',0,'medium','Correct booking operational status'],
+  'ticket.resend':['Orders, bookings, tickets',0,'medium','Resend a customer ticket or voucher'],
+  'finance.view':['Finance and refunds',0,'medium','View the finance dashboard and reports'],
+  'finance.export':['Finance and refunds',1,'high','Export finance, invoice or settlement reports'],
+  'refund.request':['Finance and refunds',0,'medium','Create a refund request'],
+  'refund.approve':['Finance and refunds',1,'high','Approve a refund within policy'],
+  'payment.reconcile':['Finance and refunds',1,'high','Update reconciliation and export status'],
+  'customer.read':['Support and CRM',0,'low','Read customer context for support'],
+  'support.case.update':['Support and CRM',0,'low','Update support case state and notes'],
+  'campaign.manage':['Marketing and content',0,'medium','Create or update marketing campaigns'],
+  'notification.send':['Marketing and content',0,'medium','Send or schedule approved notifications'],
+  'report.view':['Reports and analytics',0,'low','View reports and analytics'],
+  'report.export':['Reports and analytics',0,'medium','Export non-finance reports'],
+  'audit.view':['System and security',1,'high','View audit log records'],
+  'mfa.reset':['System and security',1,'very_high','Reset admin MFA after approval'],
+  'settings.update':['System and security',1,'very_high','Update platform settings'],
+  'api.keys.manage':['System and security',1,'very_high','Create, rotate or revoke integration keys']
+ },
+ roles:[
+  ['super_admin','Super Admin','very_high',{Users:'F',Roles:'F',Events:'F',Orders:'F',Finance:'F',Refund:'F',Support:'F',Reports:'F',Audit:'F',System:'F'}],
+  ['admin_manager','Admin Manager','high',{Users:'M',Roles:'A',Events:'V',Orders:'V',Finance:'N',Refund:'N',Support:'V',Reports:'V',Audit:'V',System:'N'}],
+  ['operations_manager','Operations Manager','medium',{Users:'N',Roles:'N',Events:'M',Orders:'M',Finance:'V',Refund:'N',Support:'M',Reports:'V',Audit:'N',System:'N'}],
+  ['finance_admin','Finance Admin','high',{Users:'N',Roles:'N',Events:'V',Orders:'V',Finance:'M',Refund:'A',Support:'V',Reports:'M',Audit:'N',System:'N'}],
+  ['finance_viewer','Finance Viewer','medium',{Users:'N',Roles:'N',Events:'V',Orders:'V',Finance:'V',Refund:'N',Support:'N',Reports:'V',Audit:'N',System:'N'}],
+  ['support_lead','Support Lead','medium',{Users:'N',Roles:'N',Events:'V',Orders:'M',Finance:'N',Refund:'R',Support:'M',Reports:'V',Audit:'N',System:'N'}],
+  ['support_agent','Support Agent','low',{Users:'N',Roles:'N',Events:'V',Orders:'O',Finance:'N',Refund:'N',Support:'O',Reports:'N',Audit:'N',System:'N'}],
+  ['marketing_content_admin','Marketing Content Admin','medium',{Users:'N',Roles:'N',Events:'V',Orders:'N',Finance:'N',Refund:'N',Support:'N',Reports:'M',Audit:'N',System:'N'}],
+  ['readonly_auditor','Read-only Auditor','medium',{Users:'N',Roles:'N',Events:'V',Orders:'V',Finance:'V',Refund:'N',Support:'V',Reports:'V',Audit:'V',System:'N'}]
+ ]
+}};
+/* the grid is derived, never typed: score + area definition → permission codes */
+function mtxGrant(k,role){
+  const d=MTX[k],out=new Set(d.always);
+  if(role[0]==='super_admin'){Object.keys(d.perms).forEach(c=>out.add(c));return out}
+  d.areas.forEach(([name,def])=>{
+    const sc=role[3][name];
+    const take=sc==='F'?[...def.r,...def.w,...def.a,...def.q]
+      :sc==='M'||sc==='O'?[...def.r,...def.w]
+      :sc==='A'?[...def.r,...def.a]
+      :sc==='V'?def.r
+      :sc==='R'?def.q:[];
+    take.forEach(c=>out.add(c));
+  });
+  return out;
+}
 
 /* requirement → what implements it */
 const TRACE={
@@ -1283,8 +1774,6 @@ const TRACE={
  'FR-ADM-USR-005':{t:['admin_identities','identity_invitations'],e:['AdminIdentity']},
  'FR-ADM-USR-006':{t:['identity_invitations'],e:['AdminIdentity']},
  'FR-ADM-USR-007':{t:['identity_invitations','admin_auth_credentials','admin_identities'],e:['AdminIdentity','Credentials']},
- 'FR-ADM-USR-009':{t:['admin_identities'],e:['AdminIdentity']},
- 'FR-ADM-USR-010':{t:['admin_identities','mfa_enrollments'],e:['AdminIdentity','MfaEnrollment']},
  'FR-ADM-USR-012':{t:['admin_identities'],e:['AdminIdentity']},
  'FR-ADM-USR-013':{t:['admin_identities','admin_sessions','refresh_tokens'],e:['AdminIdentity','RefreshToken']},
  'FR-ADM-USR-014':{t:['admin_identities'],e:['AdminIdentity']},
@@ -1430,7 +1919,117 @@ const TRACE={
  'FR-AGT-SRC-005':{t:['events'],e:['Event']},
  'NFR-SCAL-003':{t:['event_translations','event_categories'],e:[]},
  'NFR-LOC-002':{t:['event_translations'],e:['LocalizedText']},
- 'NFR-MAINT-001':{t:[],e:[]}
+ 'NFR-MAINT-001':{t:[],e:[]},
+ 'FR-PLAT-PRM-201':{t:['permissions'],e:['Permission']},
+ 'FR-PLAT-PRM-202':{t:['permissions'],e:['Permission']},
+ 'FR-PLAT-PRM-203':{t:['permissions'],e:['Permission']},
+ 'FR-PLAT-PRM-204':{t:['permissions'],e:['Permission']},
+ 'FR-PLAT-PRM-206':{t:['roles'],e:['Role']},
+ 'FR-PLAT-PRM-207':{t:['roles'],e:['Role']},
+ 'FR-PLAT-PRM-208':{t:['roles'],e:['Role']},
+ 'FR-PLAT-PRM-209':{t:['role_permissions','roles','permissions'],e:['Role','Permission']},
+ 'FR-PLAT-PRM-210':{t:['role_permissions'],e:['Role']},
+ 'FR-PLAT-CALC-201':{t:['admin_user_roles','role_permissions','admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-PLAT-CALC-202':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-PLAT-CALC-203':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-PLAT-CALC-204':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-PLAT-CALC-205':{t:['role_permissions','admin_user_roles'],e:['AdminAccess','Role']},
+ 'FR-PLAT-CALC-206':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-PLAT-CALC-207':{t:['admin_sensitive_grants','permissions'],e:['AdminAccess','Permission']},
+ 'FR-PLAT-CALC-208':{t:['admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-PLAT-POL-201':{t:['permissions','role_permissions','admin_sensitive_grants'],e:['AdminAccess','Permission']},
+ 'FR-PLAT-POL-203':{t:['permissions'],e:['Permission','AdminAccess']},
+ 'FR-PLAT-POL-207':{t:['roles','permissions'],e:['Role','Permission']},
+ 'FR-PLAT-POL-208':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-APR-201':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-202':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-203':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-204':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-205':{t:['approval_steps','roles'],e:['ApprovalRequest','Role']},
+ 'FR-PLAT-APR-206':{t:['approval_steps'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-207':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-208':{t:['approval_steps','admin_user_roles'],e:['ApprovalRequest','AdminAccess']},
+ 'FR-PLAT-APR-209':{t:['approval_requests','approval_steps'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-210':{t:['approval_steps'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-212':{t:['approval_steps','approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-213':{t:['approval_steps'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-214':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-216':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-PLAT-APR-219':{t:['admin_sensitive_grants','approval_requests'],e:['AdminAccess','ApprovalRequest']},
+ 'FR-PLAT-APR-220':{t:['audit_logs','approval_requests'],e:['AuditEntry','ApprovalRequest']},
+ 'FR-PLAT-AUD-201':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-202':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-203':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-204':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-205':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-206':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-207':{t:['audit_logs','approval_requests'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-208':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-210':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-211':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-212':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-213':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-AUD-214':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PLAT-CON-204':{t:['admin_user_roles','admin_sensitive_grants','audit_logs'],e:['AdminAccess','AuditEntry']},
+ 'FR-ADM-ROL-201':{t:['roles','admin_user_roles'],e:['Role']},
+ 'FR-ADM-ROL-202':{t:['admin_user_roles'],e:['Role','AdminAccess']},
+ 'FR-ADM-ROL-206':{t:['permissions','role_permissions'],e:['Role','Permission']},
+ 'FR-ADM-ROL-207':{t:['role_permissions'],e:['Role']},
+ 'FR-ADM-ROL-208':{t:['role_permissions','permissions'],e:['Role','Permission']},
+ 'FR-ADM-ROL-209':{t:['audit_logs','role_permissions'],e:['AuditEntry','Role']},
+ 'FR-ADM-ROL-210':{t:['roles'],e:['Role']},
+ 'FR-ADM-ROL-211':{t:['roles','role_permissions'],e:['Role']},
+ 'FR-ADM-ROL-212':{t:['roles'],e:['Role']},
+ 'FR-ADM-ASG-201':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-ADM-ASG-203':{t:['approval_requests','admin_user_roles'],e:['ApprovalRequest','AdminAccess']},
+ 'FR-ADM-ASG-204':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-ADM-ASG-205':{t:['admin_user_roles'],e:['AdminAccess']},
+ 'FR-ADM-ASG-207':{t:['audit_logs','admin_user_roles'],e:['AuditEntry','AdminAccess']},
+ 'FR-ADM-ASG-209':{t:['admin_user_roles','admin_sensitive_grants','role_permissions'],e:['AdminAccess']},
+ 'FR-ADM-ASG-210':{t:['permissions'],e:['AdminAccess','Permission']},
+ 'FR-ADM-ASG-211':{t:['admin_user_roles','admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-ADM-ASG-212':{t:['role_permissions'],e:['AdminAccess']},
+ 'FR-ADM-SEN-201':{t:['admin_sensitive_grants','approval_requests'],e:['AdminAccess','ApprovalRequest']},
+ 'FR-ADM-SEN-202':{t:['admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-ADM-SEN-203':{t:['admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-ADM-SEN-204':{t:['admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-ADM-SEN-205':{t:['admin_sensitive_grants'],e:['AdminAccess']},
+ 'FR-ADM-APR-201':{t:['approval_requests','approval_steps','roles'],e:['ApprovalRequest']},
+ 'FR-ADM-APR-203':{t:['approval_requests','approval_steps'],e:['ApprovalRequest']},
+ 'FR-ADM-APR-206':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-ADM-APR-207':{t:['approval_steps'],e:['ApprovalRequest']},
+ 'FR-ADM-APR-208':{t:['approval_steps','admin_user_roles'],e:['ApprovalRequest','AdminAccess']},
+ 'FR-ADM-APR-210':{t:['approval_steps'],e:['ApprovalRequest']},
+ 'FR-ADM-APR-211':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-ADM-APR-213':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-APR-214':{t:['approval_requests','approval_steps'],e:['ApprovalRequest']},
+ 'FR-ADM-AUD-201':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-202':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-203':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-205':{t:['permissions','admin_sensitive_grants'],e:['Permission','AdminAccess']},
+ 'FR-ADM-AUD-206':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-207':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-209':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-210':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-DSH-201':{t:['approval_requests'],e:['ApprovalRequest']},
+ 'FR-ADM-DSH-202':{t:['approval_requests','approval_steps','roles'],e:['ApprovalRequest']},
+ 'FR-ADM-DSH-203':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PUB-AUD-201':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PUB-AUD-202':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PUB-AUD-203':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-AGT-AUD-201':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-AGT-AUD-202':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-SEC-212':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-SEC-213':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-SEC-215':{t:['roles','permissions'],e:['Role','Permission']},
+ 'NFR-PRIV-201':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-PRIV-202':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-PRIV-203':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-SCAL-202':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-SCAL-203':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-COMPAT-201':{t:['permissions'],e:['Permission']},
+ 'NFR-MAINT-205':{t:['roles','permissions','role_permissions','approval_steps'],e:['Role','Permission']},
+ 'NFR-MAINT-209':{t:['role_permissions'],e:['Role']}
 };
 const REQ_BY_TABLE={},REQ_BY_ENT={};
 Object.keys(TRACE).forEach(id=>{
@@ -1445,11 +2044,12 @@ Object.keys(M).forEach(k=>{
   META['erd-'+k]=[k+' — tables',(TABLES[k]?TABLES[k].length:M[k].tables)+' tables in schema '+k,'Level 3 · ERD'];
   META['dom-'+k]=[k+' — domain',(ENT[k]?ENT[k].length+' types in the code':'not modelled yet'),'Level 3 · domain'];
   META['req-'+k]=[k+' — requirements',(REQS[k]?REQS[k].length+' functional and non-functional requirements':'not specified yet'),'Level 3 · requirements'];
+  if(MTX[k])META['mtx-'+k]=[k+' — access matrix',MTX[k].roles.length+' roles against '+Object.keys(MTX[k].perms).length+' permissions','Level 3 · matrix'];
 });
 Object.keys(TABLES).forEach(m=>TABLES[m].forEach(t=>META['tbl-'+t[0]]=[t[0],'','Level 4 · table']));
 Object.keys(ENT).forEach(m=>ENT[m].forEach(e=>META['ent-'+e[0]]=[e[0],e[1],'Level 4 · type']));
 const PARENT={};
-Object.keys(M).forEach(k=>{PARENT['mod-'+k]='map';PARENT['erd-'+k]='mod-'+k;PARENT['dom-'+k]='mod-'+k;PARENT['req-'+k]='mod-'+k});
+Object.keys(M).forEach(k=>{PARENT['mod-'+k]='map';PARENT['erd-'+k]='mod-'+k;PARENT['dom-'+k]='mod-'+k;PARENT['req-'+k]='mod-'+k;if(MTX[k])PARENT['mtx-'+k]='mod-'+k});
 const TBL_MOD={},ENT_MOD={};
 Object.keys(TABLES).forEach(m=>TABLES[m].forEach(t=>{TBL_MOD[t[0]]=m;PARENT['tbl-'+t[0]]='erd-'+m}));
 Object.keys(ENT).forEach(m=>ENT[m].forEach(e=>{ENT_MOD[e[0]]=m;PARENT['ent-'+e[0]]='dom-'+m}));
@@ -1528,7 +2128,22 @@ Object.keys(ENT).forEach(m=>ENT[m].forEach(e=>{
   e[6].forEach(i=>IX.push({g:'Invariants',l:clean(i),s:e[0],r:'ent-'+e[0],w:0}));
   e[7].forEach(v=>IX.push({g:'Domain events',l:v,s:e[0]+' publishes it',r:'ent-'+e[0],w:1}));
 }));
-const GORDER=['Modules','Requirements','Traceability','Tables','Columns','Domain types','Properties','Behaviour','Domain events','Invariants','Rules'];
+Object.keys(MTX).forEach(k=>{
+  const d=MTX[k];
+  IX.push({g:'Modules',l:'access matrix',s:'roles against permissions in '+k,r:'mtx-'+k,w:2});
+  d.roles.forEach(r=>{
+    const n=mtxGrant(k,r).size;
+    IX.push({g:'Roles',l:r[1],s:r[2].replace('_',' ')+' risk · '+n+' permissions · module '+k,r:'mtx-'+k,w:2});
+    IX.push({g:'Roles',l:r[0],s:r[1]+' · '+n+' permissions',r:'mtx-'+k,w:1.5});
+  });
+  Object.keys(d.perms).forEach(c=>{
+    const p=d.perms[c],who=d.roles.filter(r=>mtxGrant(k,r).has(c)).map(r=>r[1]);
+    IX.push({g:'Permissions',l:c,s:p[0]+(p[1]?' · sensitive · ':' · ')+who.length+' roles',r:'mtx-'+k,w:2});
+    IX.push({g:'Permissions',l:p[3],s:c,r:'mtx-'+k,w:0});
+  });
+  d.areas.forEach(a=>IX.push({g:'Permissions',l:a[0]+' area',s:'maps to '+[...a[1].r,...a[1].w,...a[1].a,...a[1].q].join(' · '),r:'mtx-'+k,w:1}));
+});
+const GORDER=['Modules','Roles','Permissions','Requirements','Traceability','Tables','Columns','Domain types','Properties','Behaviour','Domain events','Invariants','Rules'];
 
 function score(q,s){
   s=s.toLowerCase();
@@ -1686,6 +2301,7 @@ function clearFocus(){
 /* ── L2 module ── */
 const ICON_DB='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>';
 const ICON_REQ='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M10 8h4M10 12h4M10 16h2"/></svg>';
+const ICON_MTX='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>';
 const ICON_DOM='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="8.5" y="14" width="7" height="7" rx="2"/><path d="M6.5 10v2.5h11V10M12 12.5V14"/></svg>';
 function viewModule(k){
   const m=M[k];
@@ -1712,7 +2328,17 @@ function viewModule(k){
     '<div class="list">'+[...new Set(REQS[k].map(r=>r[3]))].map(g=>'<span>'+g+'</span>').join('')+
     '<span>'+REQS[k].length+' total</span></div>');
   req.onclick=()=>go('req-'+k);
-  b.appendChild(req);b.appendChild(erd);b.appendChild(dom);w.appendChild(b);
+  b.appendChild(req);b.appendChild(erd);b.appendChild(dom);
+  if(MTX[k]){
+    const d=MTX[k];
+    const mx=el('button','branch','<div class="ic" style="background:var(--pink-bg);color:var(--pink)">'+ICON_MTX+'</div>'+
+      '<h4>Access matrix</h4><p>Every role against every permission, derived from the role matrix and the area mapping in the requirements.</p>'+
+      '<div class="list">'+d.roles.slice(0,5).map(r=>'<span>'+r[1]+'</span>').join('')+
+      '<span>+'+(d.roles.length-5)+'</span><span>'+Object.keys(d.perms).length+' permissions</span></div>');
+    mx.onclick=()=>go('mtx-'+k);
+    b.appendChild(mx);
+  }
+  w.appendChild(b);
   w.appendChild(el('h3','sec','What it touches'));
   const g=el('div','grid2');
   const outg=LINKS.filter(l=>l[0]===k),ing=LINKS.filter(l=>l[1]===k);
@@ -1740,6 +2366,64 @@ function viewErd(k){
     c.appendChild(card);
   });
   w.appendChild(c);return w;
+}
+
+/* ── L3 access matrix ── */
+function viewMatrix(k){
+  const d=MTX[k],w=el('div','wrap');w.appendChild(head('mtx-'+k));
+  const RISK={low:'gray',medium:'yellow',high:'orange',very_high:'red'};
+
+  w.appendChild(el('div','legend',d.legend.map(([c,t])=>
+    '<span><b class="sc sc-'+c+'">'+c+'</b> '+t+'</span>').join('')));
+
+  /* 1 — the document's own grid */
+  w.appendChild(el('h3','sec','The Final Role Matrix'));
+  w.appendChild(el('p','note','Nine roles scored across ten areas. This is what <code>role_permissions</code> is seeded from — not the prototype’s role editor, which renders every role identically and fully enabled.'));
+  let h='<table><thead><tr><th class="rn">Role</th><th>Risk</th>'+
+    d.areas.map(a=>'<th>'+a[0]+'</th>').join('')+'</tr></thead><tbody>';
+  d.roles.forEach(r=>{
+    h+='<tr><td class="rn">'+r[1]+'</td><td><span class="tag t-'+RISK[r[2]]+'">'+r[2].replace('_',' ')+'</span></td>'+
+      d.areas.map(a=>{const sc=r[3][a[0]];return '<td class="c"><span class="sc sc-'+sc+'">'+sc+'</span></td>'}).join('')+'</tr>';
+  });
+  w.appendChild(el('div','mtx',h+'</tbody></table>'));
+
+  /* 2 — the derived permission grid */
+  const grants={};d.roles.forEach(r=>grants[r[0]]=mtxGrant(k,r));
+  w.appendChild(el('h3','sec','Derived permission grid'));
+  w.appendChild(el('p','note','Thirty permission codes, grouped by category. Each cell is computed from the score above and the area mapping — nothing here is typed by hand.'));
+  w.appendChild(el('div','mtxnote','<b>O and M grant the same codes in V1.</b> Scope is deferred, so Support Agent’s “own or assigned cases only” is not enforced and it is indistinguishable from Support Lead on Orders and Support.'));
+  let g='<table><thead><tr><th class="rn">Permission</th><th>Risk</th>'+
+    d.roles.map(r=>'<th>'+r[1].replace(/ /g,'<br>')+'</th>').join('')+'</tr></thead><tbody>';
+  let lastCat=null;
+  Object.keys(d.perms).forEach(code=>{
+    const p=d.perms[code];
+    if(p[0]!==lastCat){lastCat=p[0];g+='<tr><td class="grp" colspan="'+(d.roles.length+2)+'">'+p[0]+'</td></tr>'}
+    const held=d.roles.filter(r=>grants[r[0]].has(code)).length;
+    g+='<tr><td class="rn" title="'+p[3]+'">'+code+(p[1]?' <span class="tag t-red">sensitive</span>':'')+'</td>'+
+      '<td><span class="tag t-'+RISK[p[2]]+'">'+p[2].replace('_',' ')+'</span></td>'+
+      d.roles.map(r=>'<td class="c '+(grants[r[0]].has(code)?'yes':'no')+'">'+(grants[r[0]].has(code)?'✓':'—')+'</td>').join('')+'</tr>';
+    if(held===0)g=g;
+  });
+  w.appendChild(el('div','mtx',g+'</tbody></table>'));
+
+  /* 3 — what the matrix does not reach */
+  const orphans=d.unmapped.filter(c=>d.roles.slice(1).every(r=>!grants[r[0]].has(c)));
+  if(orphans.length)w.appendChild(el('div','mtxnote',
+    '<b>'+orphans.join(' and ')+'</b> reach no role but Super Admin. They are seeded permissions, but the matrix above has no Marketing area, '+
+    'so Marketing Content Admin — the role whose stated purpose is campaigns, notifications and content — is granted neither. Raised as an open question.'));
+
+  /* 4 — how a score becomes codes */
+  w.appendChild(el('h3','sec','How a score becomes permission codes'));
+  const t=el('div','mtx');
+  t.innerHTML='<table><thead><tr><th class="rn">Area</th><th>read</th><th>write</th><th>approve</th><th>request</th></tr></thead><tbody>'+
+    d.areas.map(([n,def])=>'<tr><td class="rn">'+n+'</td>'+
+      ['r','w','a','q'].map(x=>'<td>'+(def[x].length?def[x].join('<br>'):'<span class="no">—</span>')+'</td>').join('')+'</tr>').join('')+
+    '<tr><td class="rn">every role</td><td>'+d.always.join('<br>')+'</td><td colspan="3"><span class="no">—</span></td></tr>'+
+    '</tbody></table>';
+  w.appendChild(t);
+  w.appendChild(el('p','note','<code>V</code> takes the read codes. <code>M</code> takes read plus write. <code>A</code> takes read plus the approve code. '+
+    '<code>R</code> takes the request code alone. <code>O</code> takes read plus write and is unscoped in V1. <code>F</code> takes everything.'));
+  return w;
 }
 /* ── L4 table ── */
 function viewTable(name){
@@ -1958,6 +2642,7 @@ function render(key){
   if(key==='map')stage.appendChild(viewMap());
   else if(key.indexOf('mod-')===0)stage.appendChild(viewModule(key.slice(4)));
   else if(key.indexOf('erd-')===0)stage.appendChild(viewErd(key.slice(4)));
+  else if(key.indexOf('mtx-')===0)stage.appendChild(viewMatrix(key.slice(4)));
   else if(key.indexOf('dom-')===0)stage.appendChild(viewDomain(key.slice(4)));
   else if(key.indexOf('reqa-')===0){const q=key.slice(5).split('~');stage.appendChild(viewReqArea(q[0],q[1],q[2]));}
   else if(key.indexOf('reqs-')===0){const q=key.slice(5).split('~');stage.appendChild(viewReqSurface(q[0],q[1]));}
@@ -1966,7 +2651,7 @@ function render(key){
   else if(key.indexOf('tbl-')===0)stage.appendChild(viewTable(key.slice(4)));
   else if(key.indexOf('ent-')===0)stage.appendChild(viewEntity(key.slice(4)));
   let sel=key;
-  if(key.indexOf('erd-')===0||key.indexOf('dom-')===0||key.indexOf('req-')===0)sel='mod-'+key.slice(4);
+  if(key.indexOf('erd-')===0||key.indexOf('dom-')===0||key.indexOf('req-')===0||key.indexOf('mtx-')===0)sel='mod-'+key.slice(4);
   if(key.indexOf('rq-')===0)sel='mod-'+REQ_MOD[key.slice(3)];
   if(key.indexOf('reqs-')===0||key.indexOf('reqa-')===0)sel='mod-'+key.slice(5).split('~')[0];
   if(key.indexOf('tbl-')===0)sel='mod-'+TBL_MOD[key.slice(4)];
@@ -1994,6 +2679,7 @@ function crumbs(){
   const c=document.getElementById('crumbs');c.innerHTML='';
   const chain=[];let k=cur;while(k){chain.unshift(k);k=PARENT[k]}
   const clabel=k=>k.indexOf('req-')===0?'Requirements':k.indexOf('erd-')===0?'Tables':
+    k.indexOf('mtx-')===0?'Access matrix':
     k.indexOf('dom-')===0?'Domain':META[k][0].replace(/\.$/,'').split('—')[0].trim();
   chain.forEach((kk,i)=>{
     const t=clabel(kk);
