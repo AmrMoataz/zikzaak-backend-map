@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zikzaak — backend map</title>
+<style>
+:root{
+  --font-ui:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;
+  --font-mono:'iA Writer Mono','JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r-xs:4px;--r-sm:6px;--r-md:10px;--ease:cubic-bezier(.4,0,.2,1);
+  --sh1:0 1px 2px rgba(15,15,15,.04),0 1px 1px rgba(15,15,15,.06);
+  --sh2:0 4px 12px rgba(15,15,15,.06),0 1px 2px rgba(15,15,15,.05);
+  --sh3:0 12px 32px rgba(15,15,15,.08),0 2px 6px rgba(15,15,15,.06);}
+[data-theme="light"]{color-scheme:light;
+  --ink:#37352F;--soft:#787774;--muted:#9B9A97;
+  --paper:#FFF;--warm:#F7F6F3;--rail:#F7F6F3;--sunk:#FBFBFA;
+  --line:rgba(55,53,47,.09);--line2:rgba(55,53,47,.16);--hover:rgba(55,53,47,.06);--sel:#EBECED;
+  --accent:#2383E2;--wire:rgba(55,53,47,.16);--wire-hot:#2383E2;
+  --purple-bg:#EAE4F2;--purple:#6940A5;--green-bg:#DDEDEA;--green:#0F7B6C;--orange-bg:#FAEBDD;--orange:#D9730D;
+  --pink-bg:#F4DFEB;--pink:#AD1A72;--yellow-bg:#FBF3DB;--yellow:#8A6D00;--red-bg:#FBE4E4;--red:#E03E3E;
+  --blue-bg:#DDEBF1;--blue:#0B6E99;--gray-bg:#EBECED;--gray:#787774;--brown-bg:#E9E5E3;--brown:#64473A;}
+[data-theme="dark"]{color-scheme:dark;
+  --ink:rgba(255,255,255,.92);--soft:rgba(255,255,255,.56);--muted:rgba(255,255,255,.36);
+  --paper:#1F1F1E;--warm:#191918;--rail:#1C1C1B;--sunk:#232322;
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.16);--hover:rgba(255,255,255,.055);--sel:rgba(255,255,255,.09);
+  --accent:#529CCA;--wire:rgba(255,255,255,.16);--wire-hot:#529CCA;
+  --purple-bg:rgba(105,64,165,.3);--purple:#B98CE8;--green-bg:rgba(15,123,108,.3);--green:#54C7B2;
+  --orange-bg:rgba(217,115,13,.28);--orange:#E8A44F;--pink-bg:rgba(173,26,114,.28);--pink:#E88BC0;
+  --yellow-bg:rgba(223,171,1,.22);--yellow:#DFAB01;--red-bg:rgba(224,62,62,.22);--red:#F08585;
+  --blue-bg:rgba(11,110,153,.32);--blue:#74BEE0;--gray-bg:rgba(255,255,255,.08);--gray:rgba(255,255,255,.56);
+  --brown-bg:rgba(100,71,58,.34);--brown:#C9A18C;
+  --sh1:0 1px 2px rgba(0,0,0,.3);--sh2:0 4px 12px rgba(0,0,0,.35);--sh3:0 12px 32px rgba(0,0,0,.45);}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--warm);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
+::selection{background:rgba(35,131,226,.28)}
+
+.shell{height:100vh;display:grid;grid-template-columns:250px 1fr}
+@media(max-width:900px){.shell{grid-template-columns:1fr}
+  .rail{position:fixed;inset:0 auto 0 0;width:250px;z-index:60;transform:translateX(-100%);transition:transform .22s var(--ease)}
+  .rail.open{transform:none;box-shadow:var(--sh3)}}
+.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.rh{padding:20px 16px 14px}
+.rh b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.rh span{display:block;font-size:12.5px;color:var(--soft);margin-top:2px}
+.rb{flex:1;overflow:auto;padding:0 8px 24px}
+.grp{margin:16px 0 6px;padding:0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.item{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:9px;width:100%;padding:6px 8px;
+  border-radius:var(--r-xs);font-size:14px;color:var(--soft);transition:background-color 120ms var(--ease)}
+.item:hover{background:var(--hover);color:var(--ink)}
+.item[aria-current=true]{background:var(--sel);color:var(--ink);font-weight:500}
+.item:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.item.sub{padding-left:18px;font-size:13.5px}
+.item.dim{opacity:.45;cursor:default}
+.item.dim:hover{background:transparent;color:var(--soft)}
+.chip{width:15px;height:15px;border-radius:var(--r-xs);flex:none;display:grid;place-items:center;font-size:9px;font-weight:700;font-family:var(--font-mono)}
+.item .no{margin-left:auto;font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 20px;background:var(--paper);border-bottom:1px solid var(--line)}
+.burger{all:unset;cursor:pointer;display:none;place-items:center;width:32px;height:32px;border-radius:var(--r-sm);color:var(--ink)}
+@media(max-width:900px){.burger{display:grid}}
+.burger:hover{background:var(--hover)}
+.crumbs{display:flex;align-items:center;gap:7px;min-width:0;font-size:13px;overflow:hidden}
+.crumbs button{all:unset;cursor:pointer;color:var(--soft);white-space:nowrap}
+.crumbs button:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.crumbs i{font-style:normal;color:var(--muted)}
+.crumbs b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp{flex:1}
+.ib{all:unset;cursor:pointer;display:grid;place-items:center;width:32px;height:32px;border-radius:var(--r-sm);color:var(--soft)}
+.ib:hover{background:var(--hover);color:var(--ink)}
+.ib:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.ib[disabled]{cursor:default;color:var(--muted);opacity:.35}
+.ib[disabled]:hover{background:transparent;color:var(--muted)}
+.navpair{display:flex;gap:1px}
+
+.scroll{flex:1;overflow:auto;background:var(--warm)}
+.wrap{max-width:1140px;margin:0 auto;padding:32px 32px 96px}
+.wrap.narrow{max-width:800px}
+@media(max-width:640px){.wrap{padding:22px 16px 72px}}
+.lvl{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.ph{margin:0 0 26px}
+.ph h1{margin:0;font-size:30px;line-height:1.18;letter-spacing:-.02em;font-weight:600}
+.ph h1.mono{font-family:var(--font-mono);font-size:26px}
+.ph p{margin:8px 0 0;font-size:17px;line-height:1.5;color:var(--soft)}
+h3.sec{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:32px 0 12px}
+.gap{height:14px}
+
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--r-xs);font-size:12px;font-weight:500;line-height:1.4;white-space:nowrap}
+.t-purple{background:var(--purple-bg);color:var(--purple)}.t-green{background:var(--green-bg);color:var(--green)}
+.t-orange{background:var(--orange-bg);color:var(--orange)}.t-pink{background:var(--pink-bg);color:var(--pink)}
+.t-yellow{background:var(--yellow-bg);color:var(--yellow)}.t-red{background:var(--red-bg);color:var(--red)}
+.t-blue{background:var(--blue-bg);color:var(--blue)}.t-gray{background:var(--gray-bg);color:var(--gray)}
+.t-brown{background:var(--brown-bg);color:var(--brown)}
+
+/* ── mind map ── */
+.mapwrap{position:relative}
+.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
+.wires path{fill:none;stroke:var(--wire);stroke-width:1.2;transition:stroke .18s var(--ease),stroke-width .18s var(--ease),opacity .18s var(--ease)}
+.wires path.hot{stroke:var(--wire-hot);stroke-width:2}
+.wires.focus path{opacity:.18}
+.wires.focus path.hot{opacity:1}
+.lanes{position:relative;z-index:1;display:grid;gap:24px}
+.lane{display:grid;gap:12px}
+.lane>.lbl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.node{display:block;width:100%;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+  font:inherit;color:inherit;transition:transform 180ms var(--ease),box-shadow 180ms var(--ease),border-color 180ms var(--ease),opacity 180ms var(--ease)}
+button.node{cursor:pointer}
+button.node:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--line2)}
+button.node:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.node.planned{opacity:.6;background:transparent;border-style:dashed}
+.node .nm{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:13.5px;font-weight:600}
+.node .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.node p{margin:7px 0 0;font-size:12.5px;color:var(--soft);line-height:1.45}
+.node .cnt{margin-top:9px;font-size:11.5px;color:var(--muted);font-family:var(--font-mono)}
+.mapwrap.focus .node{opacity:.35}
+.mapwrap.focus .node.lit{opacity:1}
+
+/* ── branch cards ── */
+.branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+@media(max-width:760px){.branches{grid-template-columns:1fr}}
+.branch{display:block;width:100%;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:24px;
+  font:inherit;color:inherit;cursor:pointer;transition:transform 200ms var(--ease),box-shadow 200ms var(--ease),border-color 200ms var(--ease)}
+.branch:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--line2)}
+.branch:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.branch h4{margin:12px 0 0;font-size:20px;letter-spacing:-.015em;font-weight:600}
+.branch p{margin:7px 0 0;font-size:14.5px;color:var(--soft)}
+.branch .list{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+.branch .list span{font-family:var(--font-mono);font-size:11.5px;color:var(--soft);background:var(--sunk);
+  border:1px solid var(--line);padding:3px 7px;border-radius:var(--r-xs)}
+.ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
+
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.blk{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.blk h5{margin:0 0 12px;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.blk .li{padding:8px 0;font-size:14px;border-top:1px solid var(--line)}
+.blk .li:first-of-type{border-top:0;padding-top:0}
+.blk .li em{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+.blk .li code{font-size:12.5px}
+
+.cols{columns:2;column-gap:16px}
+@media(max-width:900px){.cols{columns:1}}
+.tcard{break-inside:avoid;margin:0 0 16px;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  width:100%;text-align:left;font:inherit;color:inherit;display:block;padding:0;
+  transition:transform 200ms var(--ease),box-shadow 200ms var(--ease),border-color 200ms var(--ease)}
+button.tcard{cursor:pointer}
+button.tcard:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--line2)}
+button.tcard:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.tcard.flag{border-color:var(--line2);box-shadow:var(--sh1)}
+.tcard>header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--sunk)}
+.tcard>header b{font-family:var(--font-mono);font-size:13.5px;font-weight:600}
+.tcard>header .cnt{margin-left:auto;font-size:11.5px;color:var(--muted);font-family:var(--font-mono)}
+.rowc{display:flex;align-items:baseline;gap:12px;padding:7px 16px;font-size:13.5px}
+.rowc+.rowc{border-top:1px solid var(--line)}
+.rowc .cn{font-family:var(--font-mono);font-size:13px;flex:1;min-width:0;word-break:break-word}
+.rowc .cm{font-size:12px;color:var(--muted);text-align:right;flex:none;max-width:54%}
+.rowc.new .cn{color:var(--green)}.rowc.warn .cn{color:var(--orange)}.rowc.bad .cn{color:var(--red)}
+.rowc.ref .cm{font-style:italic}
+.tnote{padding:11px 16px;font-size:12.5px;color:var(--soft);background:var(--sunk);border-top:1px solid var(--line)}
+.tnote.chk{background:var(--green-bg);color:var(--green);font-weight:500}
+.tnote.warnn{background:var(--orange-bg);color:var(--orange)}
+.tnote.badn{background:var(--red-bg);color:var(--red)}
+.more{padding:9px 16px;font-size:12px;color:var(--accent);background:var(--sunk);border-top:1px solid var(--line)}
+
+.callout{display:block;padding:16px 20px;border-radius:var(--r-sm);font-size:14.5px;line-height:1.5}
+.c-red{background:var(--red-bg);color:var(--red)}.c-green{background:var(--green-bg);color:var(--green)}
+.c-yellow{background:var(--yellow-bg);color:var(--yellow)}.c-orange{background:var(--orange-bg);color:var(--orange)}
+.c-blue{background:var(--blue-bg);color:var(--blue)}
+.callout b{font-weight:600}
+.callout .sub{display:block;margin-top:6px;font-size:13.5px;opacity:.88}
+.reqrow{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:12px;align-items:baseline;width:100%;padding:9px 16px;font-size:13.5px;border-top:1px solid var(--line)}
+.reqrow:hover{background:var(--hover)}
+.reqrow:focus-visible{outline:none;box-shadow:inset 0 0 0 2px rgba(35,131,226,.45)}
+.reqrow .rid{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);flex:none;min-width:132px}
+.reqrow .rtx{flex:1;min-width:0}
+.reqrow .rtx em{display:block;font-style:normal;font-family:var(--font-mono);font-size:11.5px;color:var(--accent);margin-top:3px}
+.reflist{display:flex;flex-direction:column;gap:4px}
+.reflist button{all:unset;cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-radius:var(--r-xs);font-size:13.5px}
+.reflist button:hover{background:var(--hover)}
+.reflist .mono{font-family:var(--font-mono);font-size:13px}
+.reflist .why{font-size:12px;color:var(--muted);margin-left:auto}
+code{font-family:var(--font-mono);font-size:.86em;background:var(--hover);padding:1px 5px;border-radius:var(--r-xs)}
+
+/* ── search ── */
+.searchbtn{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 9px;
+  border:1px solid var(--line2);border-radius:var(--r-sm);color:var(--muted);font-size:13px;min-width:190px}
+.searchbtn:hover{background:var(--hover);color:var(--soft)}
+.searchbtn kbd{margin-left:auto;font-family:var(--font-mono);font-size:11px;border:1px solid var(--line);
+  border-radius:var(--r-xs);padding:1px 5px;color:var(--muted)}
+@media(max-width:760px){.searchbtn span.lbl{display:none}.searchbtn kbd{display:none}.searchbtn{min-width:0}}
+.pal{position:fixed;inset:0;z-index:90;display:none;background:rgba(15,15,15,.4);padding:12vh 16px 16px}
+.pal.on{display:block}
+.palbox{max-width:620px;margin:0 auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--sh3);overflow:hidden;display:flex;flex-direction:column;max-height:70vh}
+.palin{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.palin svg{color:var(--muted);flex:none}
+.palin input{all:unset;flex:1;font-size:16px;color:var(--ink);font-family:var(--font-ui)}
+.palin input::placeholder{color:var(--muted)}
+.palin .esc{font-family:var(--font-mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-xs);padding:1px 5px}
+.palres{overflow:auto;padding:6px}
+.palgrp{padding:10px 12px 5px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.palrow{display:flex;align-items:baseline;gap:10px;padding:8px 12px;border-radius:var(--r-sm);cursor:pointer}
+.palrow.sel{background:var(--sel)}
+.palrow .l{font-family:var(--font-mono);font-size:13.5px;color:var(--ink);flex:none;max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.palrow .l mark{background:var(--yellow-bg);color:var(--yellow);border-radius:2px;padding:0 1px}
+.palrow .s{font-size:12.5px;color:var(--muted);margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.palempty{padding:26px 18px;text-align:center;color:var(--muted);font-size:14px}
+.palfoot{padding:9px 16px;border-top:1px solid var(--line);background:var(--sunk);font-size:11.5px;color:var(--muted);display:flex;gap:14px}
+.palfoot b{font-family:var(--font-mono);font-weight:400;color:var(--soft)}
+.infobtn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:6px 12px;
+  border:1px solid var(--line2);border-radius:var(--r-sm);font-size:13px;color:var(--soft)}
+.infobtn:hover{background:var(--hover);color:var(--ink)}
+.infobtn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)}
+.helpbox{max-width:660px}
+.helpbody{overflow:auto;padding:20px 24px 26px}
+.helpbody h4{margin:24px 0 8px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hlead{margin:0 0 18px;font-size:15px;color:var(--soft);line-height:1.55}
+.hsmall{margin:0;font-size:13.5px;color:var(--soft);line-height:1.6}
+.hsmall+.hsmall{margin-top:10px}
+.idbox{font-family:var(--font-mono);font-size:26px;letter-spacing:-.02em;text-align:center;padding:16px;background:var(--sunk);border:1px solid var(--line);border-radius:var(--r-md)}
+.idkey{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:14px;font-size:13px;color:var(--soft);line-height:1.5}
+.idbox .p1,.idkey b.p1{color:var(--purple)}
+.idbox .p2,.idkey b.p2{color:var(--blue)}
+.idbox .p3,.idkey b.p3{color:var(--green)}
+.idbox .p4,.idkey b.p4{color:var(--orange)}
+.idkey b{font-family:var(--font-mono);font-weight:700}
+.htab{width:100%;border-collapse:collapse;font-size:13.5px}
+.htab td{padding:7px 0;border-top:1px solid var(--line);vertical-align:top;color:var(--soft)}
+.htab td:first-child{width:38%;padding-right:14px;color:var(--ink)}
+.htab tr:first-child td{border-top:0}
+@media(max-width:560px){.idkey{grid-template-columns:1fr}}
+.rowc.hit,.blk .li.hit{background:var(--yellow-bg);border-radius:var(--r-xs)}
+.rowc.hit .cn{color:var(--yellow);font-weight:600}
+.empty{max-width:600px;padding:5vh 0 0}
+.empty h2{font-size:24px;letter-spacing:-.02em;font-weight:600;margin:0 0 12px}
+.empty p{font-size:16px;color:var(--soft);margin:0 0 14px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" id="rail">
+    <div class="rh"><b>Zikzaak backend</b><span>Modules · tables · domain</span></div>
+    <div class="rb" id="rb"></div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <button class="burger" id="burger" aria-label="Sections"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="navpair">
+        <button class="ib" id="back" title="Back"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <button class="ib" id="fwd" title="Forward"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+      <div class="crumbs" id="crumbs"></div><div class="sp"></div>
+      <button class="searchbtn" id="searchbtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <span class="lbl">Search tables, columns, types…</span><kbd>⌘K</kbd>
+      </button>
+      <button class="ib" id="up" title="Up a level"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      <button class="ib" id="theme" title="Theme"><svg id="ticon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></svg></button>
+    </div>
+    <div class="scroll" id="scroll"><div id="stage"></div></div>
+  </main>
+</div>
+<div class="pal" id="help">
+  <div class="palbox helpbox">
+    <div class="palin"><b style="font-size:16px;font-weight:600;flex:1">How to read a requirement.</b><button class="ib" id="helpx" aria-label="Close">&times;</button></div>
+    <div class="helpbody">
+      <p class="hlead">Every requirement has a stable identifier so a design, a ticket, a test and a table can all point at the same line.</p>
+
+      <div class="idbox"><span class="p1">FR</span>-<span class="p2">ADM</span>-<span class="p3">EVT</span>-<span class="p4">011</span></div>
+      <div class="idkey">
+        <div><b class="p1">FR</b> Functional — something the system does.<br><b class="p1">NFR</b> Non-functional — how well it does it.</div>
+        <div><b class="p2">Scope</b> which surface it serves.</div>
+        <div><b class="p3">Area</b> the feature group inside that surface.</div>
+        <div><b class="p4">Number</b> sequential, never reused.</div>
+      </div>
+
+      <h4>Scopes</h4>
+      <table class="htab"><tbody>
+        <tr><td><code>PLAT</code></td><td>Platform — API shape, localisation, media, domain events, the module contract</td></tr>
+        <tr><td><code>ADM</code></td><td>Admin panel — the only surface that writes catalog data</td></tr>
+        <tr><td><code>PUB</code></td><td>Customer — web and mobile app, served by the same endpoints</td></tr>
+        <tr><td><code>AGT</code></td><td>Agent portal — read-only event search</td></tr>
+      </tbody></table>
+
+      <h4>Areas</h4>
+      <table class="htab"><tbody>
+        <tr><td><code>API</code> <code>LOC</code> <code>MED</code> <code>EVT</code> <code>CON</code></td><td>API shape · localisation · media · domain events · contract</td></tr>
+        <tr><td><code>CAT</code> <code>VEN</code> <code>MAP</code> <code>TKT</code> <code>PRO</code> <code>AUD</code></td><td>categories · venues · seat maps · ticket categories · promotion · audit</td></tr>
+        <tr><td><code>BRW</code> <code>HOM</code> <code>DET</code> <code>SRC</code> <code>DLV</code></td><td>browse · home · detail · search · delivery and caching</td></tr>
+        <tr><td><code>BND</code></td><td>boundaries — what a surface must not be able to do</td></tr>
+      </tbody></table>
+
+      <h4>Non-functional categories</h4>
+      <p class="hsmall"><code>SEC</code> security · <code>PRIV</code> privacy · <code>PERF</code> performance · <code>SCAL</code> scalability · <code>AVAIL</code> availability · <code>OBS</code> observability and audit · <code>COMPAT</code> compatibility · <code>LOC</code> localisation · <code>MAINT</code> maintainability</p>
+
+      <h4>The three keywords</h4>
+      <table class="htab"><tbody>
+        <tr><td><b>SHALL</b></td><td>Mandatory. Not shipping it is a defect.</td></tr>
+        <tr><td><b>SHOULD</b></td><td>Recommended. Skipping it needs a reason on record.</td></tr>
+        <tr><td><b>MAY</b></td><td>Optional. Included so the decision is visible, not forgotten.</td></tr>
+      </tbody></table>
+
+      <h4>Traceability</h4>
+      <p class="hsmall">A blue line under a requirement lists the tables and domain types that carry it. Open the requirement to jump to them — and any table or type page shows the requirements it serves, so you can walk it in either direction.</p>
+      <p class="hsmall">Requirements are indexed by identifier and by full text. Press <b>⌘K</b> and type <code>FR-ADM-EVT-011</code>, or <code>cache</code>, or <code>fallback</code>.</p>
+    </div>
+  </div>
+</div>
+<div class="pal" id="pal">
+  <div class="palbox">
+    <div class="palin">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="palq" placeholder="Find a table, column, type, property or rule…" autocomplete="off" spellcheck="false">
+      <span class="esc">esc</span>
+    </div>
+    <div class="palres" id="palres"></div>
+    <div class="palfoot"><span><b>↑↓</b> move</span><span><b>↵</b> open</span><span><b>esc</b> close</span></div>
+  </div>
+</div>
+<script>
+/* ════════ MODULES — add here to grow the map ════════ */
+const M={
+ identity:{lane:'Foundation',color:'gray',status:'planned',tables:11,
+   what:'Customer, admin and agent auth. OTP, MFA, tokens, settings.'},
+ access:{lane:'Foundation',color:'gray',status:'planned',tables:8,
+   what:'Roles, permissions, approvals, sessions, the audit log.'},
+ catalog:{lane:'Foundation',color:'purple',status:'active',tables:14,
+   what:'Events, the taxonomy, venues, seat layout and what is on sale.',
+   sub:'What exists. Read by everything, written by almost nothing.'},
+ supply:{lane:'Foundation',color:'gray',status:'planned',tables:1,
+   what:'The supplier registry. One row per supplier.'},
+ supply_moonline:{lane:'Supply',color:'gray',status:'planned',tables:3,
+   what:'Stock we bought. The only source the database can count.'},
+ supply_tixstock:{lane:'Supply',color:'gray',status:'planned',tables:3,
+   what:'An external broker feed. A cache, not truth.'},
+ supply_agent:{lane:'Supply',color:'gray',status:'planned',tables:3,
+   what:'Broker listings, behind an approval gate.'},
+ availability:{lane:'Supply',color:'gray',status:'planned',tables:1,
+   what:'The read model all supply sources project into.'},
+ pricing:{lane:'Selling',color:'gray',status:'planned',tables:2,
+   what:'FX rates and snapshots, fee and markup rules.'},
+ ordering:{lane:'Selling',color:'gray',status:'planned',tables:6,
+   what:'Orders, items, attendees, payments, hold orchestration.'},
+ invoicing:{lane:'Selling',color:'gray',status:'planned',tables:2,
+   what:'Invoices and the number sequence. Missing from the supplied schema.'},
+ promotions:{lane:'Selling',color:'gray',status:'planned',tables:3,
+   what:'Promo codes, audience, redemptions.'},
+ packages:{lane:'Selling',color:'gray',status:'planned',tables:17,
+   what:'The second purchase path, with its own booking and holds.'},
+ notifications:{lane:'Downstream',color:'gray',status:'planned',tables:8,
+   what:'Event to message pipeline, templates, delivery, campaigns.'},
+ sap:{lane:'Downstream',color:'gray',status:'planned',tables:4,
+   what:'Report items, amendments, export snapshots.'},
+ reporting:{lane:'Downstream',color:'gray',status:'planned',tables:1,
+   what:'Financial snapshots and the admin finance surfaces.'}
+};
+const LANES=['Foundation','Supply','Selling','Downstream'];
+/* [from, to, label] — from depends on to */
+const LINKS=[
+ ['catalog','identity','translated_by'],
+ ['access','identity','who is acting'],
+ ['supply_moonline','catalog','event_id'],['supply_moonline','supply','supplier_id'],
+ ['supply_tixstock','catalog','event_id'],['supply_tixstock','supply','supplier_id'],
+ ['supply_agent','catalog','event_id'],
+ ['availability','supply_moonline','projects'],['availability','supply_tixstock','projects'],
+ ['availability','supply_agent','projects'],['availability','catalog','event_id'],
+ ['ordering','availability','reads'],['ordering','pricing','prices'],['ordering','promotions','discount'],
+ ['invoicing','ordering','on paid'],['packages','catalog','composes'],['packages','pricing','prices'],
+ ['notifications','ordering','listens'],['notifications','catalog','listens'],
+ ['sap','ordering','frozen records'],['reporting','sap','aggregates']
+];
+
+/* ════════ catalog — tables ════════ */
+const TABLES={catalog:[
+ ['events',null,[['id','uuid pk'],['event_category_id','fk → the leaf category'],
+  ['venue_id','fk null'],['one_time_venue_json','one-off location','new'],
+  ['title','english canonical'],['starts_at · timezone','Asia/Baghdad','new'],
+  ['status','draft · active · postponed · cancelled','new'],
+  ['ticketing_mode','seat_map · quantity · time_slot','new'],
+  ['event_source','moonline_owned · supplier_sourced'],
+  ['desktop_cover_url · mobile_cover_url','1600×900 · 1080×1350','new'],
+  ['zone_layout_url','static image for no-seat-map events','new'],
+  ['hero_image_url','wider crop for the banner rotation','new'],
+  ['is_homepage_banner · is_trending · is_featured','step 4 toggles','new'],
+  ['homepage_order','position inside its category','new'],
+  ['draft_progress_json','per-section readiness','new'],
+  ['source_supplier_id · external_event_id','→ supply · no fk','ref']],
+  'The homepage banner is a query over these flags. There is no hero_images table.'],
+ ['event_translations',null,[['id','uuid pk'],['event_id','fk · cascade'],['language','en · ar · ckb'],
+  ['title · short_summary · full_description','all three required'],['terms_notes',''],
+  ['hero_badge','banner copy · e.g. Live this July','new'],
+  ['seo_title · seo_description',''],['slug','unique per language'],['is_published','per-language']],
+  'Publish is blocked until all three languages are complete.'],
+ ['event_media','new',[['id','uuid pk'],['event_id','fk · cascade'],['kind','image · video'],
+  ['url · poster_url',''],['display_order',''],['is_primary','poster and video fallback'],['alt_text','']],
+  'JPG/PNG/WebP ≤ 10 MB · MP4/WebM ≤ 75 MB and 90 s. A single image_url cannot hold this.'],
+ ['event_categories','new',[['id','uuid pk'],['parent_id','self · max depth 2'],['slug · icon',''],
+  ['display_order',''],['status','active · inactive · archived'],
+  ['default_cover_desktop_url','1920×1080'],['default_cover_mobile_url','1080×1920'],
+  ['default_thumbnail_url','800×600'],['is_fallback_image','use for events with no custom image']],
+  'Image priority: event custom → supplier → subcategory default → category default → placeholder.'],
+ ['event_category_translations','new',[['id','uuid pk'],['event_category_id','fk · cascade'],
+  ['language','en · ar · ckb'],['name','all three required']],
+  'The create form refuses to save until 3/3 languages are complete.'],
+ ['ticket_categories','new',[['id','uuid pk'],['event_id','fk · cascade'],['name','Regular · VIP'],
+  ['customer_price · currency','one public price per category'],['included_fee_rate','3%'],
+  ['visibility','active · hidden'],['display_order','']],
+  'Supplier allocations, quantities and units live in supply_moonline.'],
+ ['ticket_category_translations','new',[['id','uuid pk'],['ticket_category_id','fk · cascade'],
+  ['language','en · ar · ckb'],['name · description','']],null],
+ ['activity_booking_categories','new',[['id','uuid pk'],['event_id','fk · cascade'],['name','Full court'],
+  ['min_players · max_players','2 · 4'],['display_order','']],
+  'Only when ticketing_mode = time_slot. Slots themselves are supply.'],
+ ['venues','changed',[['id','uuid pk'],['name',''],['city','free text on the form','warn'],
+  ['country_code','char(2) from a static list','warn'],['address_line_1',''],['capacity',''],
+  ['latitude · longitude','map pin'],['external_venue_id','supplier sync match']],
+  {t:'chk',s:'No cities or countries tables. The form types a city and picks a country from a list.'}],
+ ['venue_translations',null,[['id','uuid pk'],['venue_id','fk · cascade'],['language','en · ar · ckb'],
+  ['name · address_line_1','']],null],
+ ['venue_maps','changed',[['id','uuid pk'],['venue_id','fk · cascade'],['template_type','stadium · arena · club'],
+  ['map_url','tixstock svg'],['is_published','gates seat-map ticketing','new'],['source','tixstock · moonline']],
+  'One template per venue. The event gets a copy at publish time.'],
+ ['venue_map_sections','new',[['id','uuid pk'],['venue_map_id','fk · cascade'],['code · label','VIP-A'],['display_order','']],null],
+ ['venue_map_rows','new',[['id','uuid pk'],['section_id','fk · cascade'],['label','1 · 2 · 3'],['display_order','']],null],
+ ['venue_map_seats','new',[['id','uuid pk'],['row_id','fk · cascade'],['seat_number',''],
+  ['seat_type · is_accessible','']],'Template only. Sold or held is a supply fact.']
+]};
+const REFBY={
+ events:['event_translations','event_media','ticket_categories','activity_booking_categories'],
+ venues:['events','venue_maps','venue_translations'],
+ event_categories:['events','event_category_translations'],
+ venue_maps:['venue_map_sections'],venue_map_sections:['venue_map_rows'],venue_map_rows:['venue_map_seats'],
+ ticket_categories:['ticket_category_translations']
+};
+
+/* ════════ catalog — domain entities ════════ */
+const ENT={catalog:[
+ ['Event','Aggregate root','purple',['events','event_translations','event_media','ticket_categories','activity_booking_categories'],
+  [['EventId Id',''],['EventCategoryId Category','the leaf — parent is derivable'],
+   ['LocalizedText Title','falls back to the English canonical'],['VenueRef Venue','saved venue or a one-time location'],
+   ['ZonedDateTime StartsAt','stored with its timezone'],['EventStatus Status','Draft · Active · Postponed · Cancelled'],
+   ['TicketingMode Mode','SeatMap · Quantity · TimeSlot'],['PromotionState Promotion','value object'],
+   ['MediaGallery Media','ordered, one primary'],['IReadOnlyList&lt;TicketCategory&gt; Tiers','entities inside the boundary']],
+  [['SaveDraft(section)','per-section readiness'],['Publish()','refused unless every readiness rule passes'],
+   ['Cancel(reason)','terminal. publishes EventCancelled'],['Postpone(newDate)',''],
+   ['SetTicketingMode(mode)',''],
+   ['AddTicketCategory(name, price)',''],['AddBookingCategory(name, min, max)',''],
+   ['AddMedia(item)',''],['SetPrimaryMedia(id)',''],['SetPromotion(state)','']],
+  ['Cannot publish without all three languages, both covers, one primary media item, a venue and at least one tier',
+   'SeatMap mode requires a saved venue with a published map',
+   'A cancelled event is terminal and accepts no new stock'],
+  ['EventPublished','EventPostponed','EventCancelled','TicketCategoryDefined']],
+ ['TicketCategory','Entity','blue',['ticket_categories','ticket_category_translations'],
+  [['TicketCategoryId Id',''],['LocalizedText Name','Regular · VIP'],
+   ['Money CustomerPrice','one public price'],['Percent IncludedFee','3%'],
+   ['Visibility Visibility','Active · Hidden'],['int DisplayOrder','']],
+  [['Reprice(amount)',''],['Hide()',''],['Show()','']],
+  ['Price is the customer-facing figure. Supplier base prices never appear here.'],[]],
+ ['ActivityBookingCategory','Entity','blue',['activity_booking_categories'],
+  [['BookingCategoryId Id',''],['string Name','Full court'],
+   ['int MinPlayers · MaxPlayers','2 · 4'],['int DisplayOrder','']],
+  [[ 'ChangeLimits(min, max)','']],
+  ['Min ≤ max','Only exists when the event is TimeSlot mode'],[]],
+ ['EventCategory','Aggregate root','green',['event_categories','event_category_translations'],
+  [['EventCategoryId Id',''],['EventCategoryId? Parent','max depth 2'],
+   ['LocalizedText Name','all three required'],['string Icon',''],['int DisplayOrder',''],
+   ['CategoryStatus Status','Active · Inactive · Archived'],
+   ['DefaultVisuals Visuals','desktop, mobile, thumbnail, fallback flag']],
+  [['Create(names)','all three languages or it is refused'],['Deactivate()',''],
+   ['Archive()','only when unused'],['Reorder(position)',''],['SetDefaultVisuals(images)','']],
+  ['Depth never exceeds 2','Cannot archive while an active event references it',
+   'Every active category has a name in all three languages'],
+  ['CategoryArchived']],
+ ['Venue','Aggregate root','orange',['venues','venue_translations','venue_maps','venue_map_sections','venue_map_rows','venue_map_seats'],
+  [['VenueId Id',''],['LocalizedText Name',''],['string City','free text'],
+   ['CountryCode Country','char(2) from a static list'],['GeoPoint Location','lat/long pin'],
+   ['int? Capacity',''],['IReadOnlyList&lt;VenueMap&gt; Maps','']],
+  [['AddMap(template)',''],['PublishMap(mapId)','gates seat-map ticketing for every event here'],
+   ['AddSection(mapId, code)',''],['AddRow(sectionId, label)',''],['AddSeats(rowId, numbers)','']],
+  ['A published map cannot lose a section that seats reference',
+   'Seat numbers are unique within a row','Publishing requires at least one section'],
+  ['VenueMapPublished']],
+ ['VenueMap','Entity','orange',['venue_maps'],
+  [['VenueMapId Id',''],['MapSource Source','Tixstock · Moonline'],['string? MapUrl',''],
+   ['string? TemplateType',''],['bool IsPublished','']],
+  [['Publish()',''],['Unpublish()','blocked while events use it']],
+  ['A template, not an event copy. The event copy is made by supply at publish time.'],[]],
+ ['Seat','Entity','orange',['venue_map_seats'],
+  [['SeatId Id',''],['RowId Row',''],['string Number',''],['SeatType Type',''],['bool IsAccessible','']],
+  [],['A seat is a coordinate. It has no price and no status.'],[]],
+ ['LocalizedText','Value object','gray',['*_translations'],
+  [['string Canonical','the English base field'],['IReadOnlyDictionary&lt;Language, string&gt; Overrides','']],
+  [['For(language)','returns the override, else the canonical'],['IsComplete()','all three present']],
+  ['Immutable','Canonical is never empty'],[]],
+ ['PromotionState','Value object','gray',['events'],
+  [['bool IsHomepageBanner','requires a hero image'],['bool IsTrending · IsFeatured',''],
+   ['int HomepageOrder','position inside its own category']],
+  [['WithBanner(imageUrl)','']],
+  ['Homepage banner is refused without a hero image','The banner rotation is a query, never a stored list'],[]],
+ ['TicketingMode','Value object','gray',['events'],
+  [['enum','SeatMap · Quantity · TimeSlot']],
+  [['RequiresSeatTemplate()','']],
+  ['SeatMap only with a published venue map'],[]]
+]};
+
+const REQS={catalog:[
+ ["FR-PLAT-API-001", "The module SHALL expose one versioned REST API with route groups /api/v1/public, /api/v1/admin, /api/v1/agent, all sharing one domain layer.", "No BFF. Route group determines auth and payload shape, not business logic.", "Platform", "API shape"],
+ ["FR-PLAT-API-002", "Public routes SHALL require no authentication and SHALL never vary by user.", "A response containing anything user-specific is a defect.", "Platform", "API shape"],
+ ["FR-PLAT-API-003", "Admin and agent routes SHALL require a bearer token and SHALL enforce permissions server-side.", "UI hiding is not authorisation.", "Platform", "API shape"],
+ ["FR-PLAT-API-004", "Read endpoints SHALL support sparse responses via a view parameter (card, detail, full).", "Mobile requests card for lists; admin requests full.", "Platform", "API shape"],
+ ["FR-PLAT-API-005", "List endpoints SHALL be paginated with a cursor and SHALL cap page size.", "Default 20, max 100.", "Platform", "API shape"],
+ ["FR-PLAT-API-006", "The API SHALL publish an OpenAPI document per version, sufficient to generate web and Flutter clients.", "Contract stability is a release gate.", "Platform", "API shape"],
+ ["FR-PLAT-API-007", "Breaking changes SHALL require a new version path; additive changes SHALL NOT.", "Old version supported until clients migrate.", "Platform", "API shape"],
+ ["FR-PLAT-API-008", "Errors SHALL use RFC 9457 problem details with a stable machine-readable type.", "Clients branch on type, never on message text.", "Platform", "API shape"],
+ ["FR-PLAT-LOC-001", "The platform SHALL support exactly en, ar and ckb.", "Sorani Kurdish is ckb, not ku.", "Platform", "Localisation"],
+ ["FR-PLAT-LOC-002", "Public and agent responses SHALL return one resolved string per translatable field, chosen from Accept-Language or an explicit lang parameter.", "Client never implements fallback.", "Platform", "Localisation"],
+ ["FR-PLAT-LOC-003", "Resolution SHALL return the published translation for the requested language, otherwise the English canonical field.", "Fallback is silent, never an error.", "Platform", "Localisation"],
+ ["FR-PLAT-LOC-004", "Admin responses SHALL return all three languages for every translatable field.", "The editor works on translations side by side.", "Platform", "Localisation"],
+ ["FR-PLAT-LOC-005", "Supplier-sourced events SHALL be served in English regardless of the requested language.", "Assumption A3.", "Platform", "Localisation"],
+ ["FR-PLAT-LOC-006", "ar and ckb SHALL be marked right-to-left in the response metadata.", "Clients need it for rendering.", "Platform", "Localisation"],
+ ["FR-PLAT-MED-001", "Media uploads SHALL use presigned URLs issued by the API; bytes SHALL NOT pass through the application.", "API stores the object key only.", "Platform", "Media"],
+ ["FR-PLAT-MED-002", "The API SHALL validate declared content type and size before issuing a presigned URL.", "Images ≤ 10 MB, video ≤ 75 MB.", "Platform", "Media"],
+ ["FR-PLAT-MED-003", "The API SHALL reject an upload whose stored object does not match the declared type on confirmation.", "Prevents type spoofing.", "Platform", "Media"],
+ ["FR-PLAT-MED-004", "Media URLs returned to clients SHALL be CDN URLs derived from the stored key at read time.", "Base URL is configuration, never persisted.", "Platform", "Media"],
+ ["FR-PLAT-MED-005", "Video SHALL be limited to 90 seconds and SHALL carry a poster image.", "Poster is the fallback when video cannot play.", "Platform", "Media"],
+ ["FR-PLAT-EVT-001", "State changes SHALL write their domain event to an outbox in the same transaction.", "No event without the state change, and none lost.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-002", "The module SHALL publish EventPublished, EventPostponed, EventCancelled, TicketCategoryDefined, VenueMapPublished and CategoryArchived.", "Consumed by supply, notifications and reporting.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-003", "Events SHALL carry a stable identifier and version, and SHALL be safe to process more than once.", "Consumers deduplicate.", "Platform", "Domain events"],
+ ["FR-PLAT-EVT-004", "Publishing SHALL be at-least-once with an ordered dispatch per aggregate.", "Ordering matters for publish-then-cancel.", "Platform", "Domain events"],
+ ["FR-PLAT-CON-001", "The module SHALL expose an in-process read contract to other modules and SHALL NOT allow direct table access.", "No other module maps a catalog table.", "Platform", "Module contract"],
+ ["FR-PLAT-CON-002", "The contract SHALL provide GetEvent, GetEventsByIds, IsSellable, GetSeatTemplate and GetTicketCategories.", "GetEventsByIds batches to avoid N+1.", "Platform", "Module contract"],
+ ["FR-PLAT-CON-003", "IsSellable SHALL return false for draft, cancelled and archived-category events.", "Supply calls it before publishing stock.", "Platform", "Module contract"],
+ ["FR-PLAT-CON-004", "Cross-schema references SHALL be identifier columns without foreign keys; existence SHALL be validated through the contract at write time.", "Schema-per-module boundary.", "Platform", "Module contract"],
+ ["FR-ADM-CAT-001", "An admin SHALL create a category with a name in all three languages; creation SHALL be rejected if any is missing.", "The form reports 0/3 languages complete.", "Admin", "Categories"],
+ ["FR-ADM-CAT-002", "Categories SHALL form a tree no deeper than two levels.", "A subcategory cannot have children.", "Admin", "Categories"],
+ ["FR-ADM-CAT-003", "An admin SHALL set an icon, a status and a display order per category.", "Order is contiguous within a parent.", "Admin", "Categories"],
+ ["FR-ADM-CAT-004", "A category SHALL support default visuals: desktop cover, mobile cover, card thumbnail, and a fallback flag.", "1920×1080, 1080×1920, 800×600.", "Admin", "Categories"],
+ ["FR-ADM-CAT-005", "Image resolution SHALL follow: event custom → supplier → subcategory default → category default → global placeholder.", "Stated on the Default Visuals tab.", "Admin", "Categories"],
+ ["FR-ADM-CAT-006", "Only active categories SHALL be selectable when creating or editing an event.", "Inactive categories stay on existing events.", "Admin", "Categories"],
+ ["FR-ADM-CAT-007", "A category SHALL NOT be deleted; it SHALL be deactivated or archived.", "Archive is blocked while events reference it.", "Admin", "Categories"],
+ ["FR-ADM-CAT-008", "Reordering SHALL be atomic across affected siblings.", "No duplicate or gapped positions.", "Admin", "Categories"],
+ ["FR-ADM-CAT-009", "Archiving SHALL publish CategoryArchived.", "Consumers refresh navigation.", "Admin", "Categories"],
+ ["FR-ADM-VEN-001", "An admin SHALL create a venue with name, city, country, optional address, capacity and coordinates.", "City is free text; country from a fixed list.", "Admin", "Venues"],
+ ["FR-ADM-VEN-002", "Country SHALL be validated against ISO 3166-1 alpha-2.", "Served from a static asset, not a table.", "Admin", "Venues"],
+ ["FR-ADM-VEN-003", "A venue SHALL support a translated name and address per language.", "Live on save; no publish step.", "Admin", "Venues"],
+ ["FR-ADM-VEN-004", "The API SHALL return, per venue, whether a published map exists and how many active events use it.", "Drives the Mapped / No Map column.", "Admin", "Venues"],
+ ["FR-ADM-VEN-005", "A venue SHALL NOT be deleted while any event references it.", "Reject with a problem detail naming the events.", "Admin", "Venues"],
+ ["FR-ADM-MAP-001", "A seat map SHALL belong to a venue and SHALL be reusable across its events.", "One template per venue.", "Admin", "Seat maps"],
+ ["FR-ADM-MAP-002", "An admin SHALL define sections, rows within sections, and seats within rows, each ordered.", "Seat carries number, type and accessibility.", "Admin", "Seat maps"],
+ ["FR-ADM-MAP-003", "Seat numbers SHALL be unique within a row.", "Reject duplicates on save.", "Admin", "Seat maps"],
+ ["FR-ADM-MAP-004", "A map SHALL NOT be published with zero sections.", "Publish is the gate for seat-map ticketing.", "Admin", "Seat maps"],
+ ["FR-ADM-MAP-005", "Publishing a map SHALL publish VenueMapPublished.", "Supply prepares the event copy.", "Admin", "Seat maps"],
+ ["FR-ADM-MAP-006", "A published map SHALL NOT lose a section, row or seat that a published event depends on.", "Reject the edit; offer a new version instead.", "Admin", "Seat maps"],
+ ["FR-ADM-EVT-001", "The events list SHALL support filtering by status, source and promotion, and free-text search by name, ID, venue or supplier reference.", "Matches the list screen filters.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-002", "Creating an event SHALL immediately persist a draft; the wizard SHALL NOT hold state client-side.", "Header shows Draft auto-saved.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-003", "The API SHALL persist per-section completion and return a readiness summary.", "Header shows 1/9 ready.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-004", "A draft SHALL be resumable after a reload or on another device.", "Draft belongs to the event, not the session.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-005", "An event SHALL require a category and a subcategory.", "Both mandatory in the wizard.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-006", "An event SHALL carry title, short summary, full description and optional terms in all three languages.", "Publish blocked until complete.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-007", "An event SHALL use either a saved venue or a one-time venue recorded on the event.", "One-time venues are not reusable.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-008", "An event SHALL declare a ticketing mode of seat_map, quantity or time_slot.", "Determines the rest of the wizard.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-009", "seat_map SHALL be selectable only when the chosen saved venue has a published map.", "Otherwise the option is refused with a reason.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-010", "An event SHALL carry a start date, time and timezone, defaulting to Asia/Baghdad.", "Stored with offset.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-011", "Publishing SHALL be refused unless all three languages are complete, both covers are present, at least one media item is primary, a venue is set, and at least one ticket or booking category exists.", "Each failure returned as a named reason.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-012", "Status SHALL move draft → active → postponed → cancelled; cancelled SHALL be terminal.", "Enforced in the domain, not by the client.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-013", "Postponing SHALL accept a new date and SHALL publish EventPostponed.", "Existing orders are another module's concern.", "Admin", "Event lifecycle"],
+ ["FR-ADM-EVT-014", "Cancelling SHALL publish EventCancelled and SHALL make the event non-sellable immediately.", "IsSellable returns false thereafter.", "Admin", "Event lifecycle"],
+ ["FR-ADM-TKT-001", "An admin SHALL define one or more ticket categories per event, each with a name, a single customer price and a visibility flag.", "Repeatable in Step 3.", "Admin", "Ticket and booking categories"],
+ ["FR-ADM-TKT-002", "Ticket category names SHALL be translatable.", "Shown to customers at checkout.", "Admin", "Ticket and booking categories"],
+ ["FR-ADM-TKT-003", "The API SHALL return the included fee as a computed value, never as stored input.", "3% in the design; the rate is configuration.", "Admin", "Ticket and booking categories"],
+ ["FR-ADM-TKT-004", "Defining a ticket category SHALL publish TicketCategoryDefined.", "Supply creates allocations and units.", "Admin", "Ticket and booking categories"],
+ ["FR-ADM-TKT-005", "For time_slot events an admin SHALL define booking categories with minimum and maximum players.", "\"Full court, min 2, max 4.\"", "Admin", "Ticket and booking categories"],
+ ["FR-ADM-TKT-006", "Minimum players SHALL NOT exceed maximum players.", "Rejected on save.", "Admin", "Ticket and booking categories"],
+ ["FR-ADM-MED-001", "An event SHALL support an ordered gallery of images and video, with exactly one primary item.", "Primary is the poster and the video fallback.", "Admin", "Media and promotion"],
+ ["FR-ADM-MED-002", "An event SHALL carry a desktop cover and a mobile cover as distinct images.", "1600×900 and 1080×1350.", "Admin", "Media and promotion"],
+ ["FR-ADM-MED-003", "A quantity event MAY carry a static zone layout image.", "Non-interactive; creates no selectable seats.", "Admin", "Media and promotion"],
+ ["FR-ADM-PRO-001", "An admin SHALL set homepage banner, trending and featured independently.", "Three separate flags.", "Admin", "Media and promotion"],
+ ["FR-ADM-PRO-002", "Enabling the homepage banner SHALL require a dedicated hero image.", "Wider crop than the card cover.", "Admin", "Media and promotion"],
+ ["FR-ADM-PRO-003", "An admin SHALL set the event's position within its homepage category.", "Lower numbers first.", "Admin", "Media and promotion"],
+ ["FR-ADM-PRO-004", "The banner rotation SHALL be derived by query from active flagged events; it SHALL NOT be a stored list.", "No separate banner table for events.", "Admin", "Media and promotion"],
+ ["FR-ADM-PRO-005", "An admin SHALL manage ordered marketing banners with an image, a destination and per-language badge, title and description.", "Marketing Banners tab.", "Admin", "Media and promotion"],
+ ["FR-ADM-PRO-006", "An admin SHALL manage an ordered artist spotlight with name, genre and portrait.", "Artist Spotlight tab.", "Admin", "Media and promotion"],
+ ["FR-ADM-AUD-001", "Publish, postpone, cancel, category archive and map publish SHALL be recorded with actor, timestamp and before/after state.", "Consumed by the audit module.", "Admin", "Audit"],
+ ["FR-PUB-BRW-001", "Only published, non-cancelled events SHALL be returned.", "Drafts are invisible to customers.", "Customer", "Browse"],
+ ["FR-PUB-BRW-002", "Past events SHALL be excluded by default and MAY be requested explicitly.", "Default is upcoming only.", "Customer", "Browse"],
+ ["FR-PUB-BRW-003", "The list SHALL be filterable by category, subcategory, city, date range and price range.", "Filters come from the taxonomy and venue.", "Customer", "Browse"],
+ ["FR-PUB-BRW-004", "The list SHALL be sortable by date, price and popularity.", "Popularity definition is configuration.", "Customer", "Browse"],
+ ["FR-PUB-BRW-005", "List responses SHALL use the card shape: title, category, cover, venue name, city, start date and \"from\" price.", "Matches the event card in the design.", "Customer", "Browse"],
+ ["FR-PUB-BRW-006", "The \"from\" price SHALL be the lowest visible ticket category price.", "Hidden categories excluded.", "Customer", "Browse"],
+ ["FR-PUB-BRW-007", "Responses SHALL be cursor-paginated and SHALL be stable across pages.", "No duplicates when data changes mid-scroll.", "Customer", "Browse"],
+ ["FR-PUB-HOM-001", "The hero rotation SHALL return active events flagged as homepage banner, in homepage order, with their hero image and per-language badge.", "Derived by query.", "Customer", "Home"],
+ ["FR-PUB-HOM-002", "The category chips SHALL return active top-level categories in display order with their icon.", "Reflects Category Management.", "Customer", "Home"],
+ ["FR-PUB-HOM-003", "Trending and featured rails SHALL return events by their respective flags, in homepage order.", "Two independent rails.", "Customer", "Home"],
+ ["FR-PUB-HOM-004", "The marketing banner strip SHALL return active banners in order with resolved language content.", "Separate from the event hero rotation.", "Customer", "Home"],
+ ["FR-PUB-DET-001", "The detail response SHALL include title, summary, description, terms, date, timezone, venue and category.", "One resolved language.", "Customer", "Event detail"],
+ ["FR-PUB-DET-002", "It SHALL include the ordered media gallery with the primary item identified.", "Video carries its poster.", "Customer", "Event detail"],
+ ["FR-PUB-DET-003", "It SHALL declare the ticketing mode so the client can choose seat selection or quantity selection.", "Drives \"Choose seats\" vs \"Select tickets\".", "Customer", "Event detail"],
+ ["FR-PUB-DET-004", "For seat_map events it SHALL expose the seat template; for quantity events it MAY expose a static zone layout image.", "The zone image is not interactive.", "Customer", "Event detail"],
+ ["FR-PUB-DET-005", "It SHALL list visible ticket categories with their customer price.", "Availability is supplied by another module.", "Customer", "Event detail"],
+ ["FR-PUB-DET-006", "It SHALL be resolvable by localised slug as well as by identifier.", "Slugs are unique per language.", "Customer", "Event detail"],
+ ["FR-PUB-DET-007", "A cancelled event SHALL return a gone response rather than being silently missing.", "Clients can explain it to the user.", "Customer", "Event detail"],
+ ["FR-PUB-SRC-001", "Search SHALL match event title, venue name and city in the requested language, falling back to English.", "One search box in the header.", "Customer", "Search"],
+ ["FR-PUB-SRC-002", "Search SHALL be diacritic-insensitive and case-insensitive for Arabic and Kurdish.", "Otherwise Arabic search is unusable.", "Customer", "Search"],
+ ["FR-PUB-SRC-003", "Search SHALL return results in the card shape and SHALL be paginated.", "Same shape as browse.", "Customer", "Search"],
+ ["FR-PUB-DLV-001", "All endpoints in this document SHALL be anonymous GETs with no user-specific content.", "Requirement for cacheability.", "Customer", "Delivery"],
+ ["FR-PUB-DLV-002", "Responses SHALL carry Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300.", "Edge holds 60 s, serves stale while refreshing.", "Customer", "Delivery"],
+ ["FR-PUB-DLV-003", "The cache key SHALL include the resolved language and SHALL exclude cookies.", "Otherwise languages leak between users.", "Customer", "Delivery"],
+ ["FR-PUB-DLV-004", "Publish, cancel and category archive SHALL invalidate the affected cached paths.", "Ordinary edits may expire naturally.", "Customer", "Delivery"],
+ ["FR-PUB-DLV-005", "Responses SHALL carry an ETag and SHALL honour If-None-Match.", "Mobile on a slow network re-validates cheaply.", "Customer", "Delivery"],
+ ["FR-PUB-DLV-006", "Mobile clients SHALL be able to request the card shape to avoid over-fetching.", "view=card.", "Customer", "Delivery"],
+ ["FR-AGT-SRC-001", "An authenticated agent SHALL search events by name, reference number or league.", "The screen's search box.", "Agent", "Event search"],
+ ["FR-AGT-SRC-002", "Results SHALL be filterable by the quick chips shown in the design — competition and event type.", "\"World Cup 2026\", \"Concerts\", \"Club Friendlies\".", "Agent", "Event search"],
+ ["FR-AGT-SRC-003", "Each result SHALL return reference, category label, title, date, time and venue with city and country.", "Matches the result row.", "Agent", "Event search"],
+ ["FR-AGT-SRC-004", "A result MAY carry a status marker where the event is provisional.", "The design shows a \"Not Final\" badge.", "Agent", "Event search"],
+ ["FR-AGT-SRC-005", "Only published, non-cancelled, future events SHALL be listable.", "An agent cannot list against a draft.", "Agent", "Event search"],
+ ["FR-AGT-SRC-006", "Results SHALL be returned in the agent's chosen language with English fallback.", "Same resolution rule as customers.", "Agent", "Event search"],
+ ["FR-AGT-BND-001", "An agent SHALL NOT create, edit, publish or cancel an event, venue or category.", "Enforced server-side on the agent route group.", "Agent", "Boundaries"],
+ ["FR-AGT-BND-002", "An agent SHALL NOT see draft, cancelled or archived-category events.", "Same visibility rule as customers.", "Agent", "Boundaries"],
+ ["FR-AGT-BND-003", "Agent responses SHALL NOT include supplier identity, SAP codes, base prices or internal notes.", "Those belong to admin only.", "Agent", "Boundaries"],
+ ["FR-AGT-BND-004", "Agent event reads SHALL NOT be edge-cached.", "Authenticated requests bypass the CDN.", "Agent", "Boundaries"],
+ ["NFR-SEC-001", "All traffic SHALL be HTTPS; HTTP SHALL redirect.", "HSTS on the API domain.", "Non-functional", "Security"],
+ ["NFR-SEC-002", "Authorisation SHALL be enforced server-side on every admin and agent endpoint.", "Never rely on hidden UI.", "Non-functional", "Security"],
+ ["NFR-SEC-003", "Secrets SHALL come from environment or a secret store, never from source control.", "Contract requirement, Annex A7.", "Non-functional", "Security"],
+ ["NFR-SEC-004", "Write endpoints SHALL validate and reject unexpected fields.", "No mass assignment into aggregates.", "Non-functional", "Security"],
+ ["NFR-SEC-005", "Presigned upload URLs SHALL be single-use, scoped to one key, and expire within 15 minutes.", "Prevents open upload endpoints.", "Non-functional", "Security"],
+ ["NFR-SEC-006", "Uploaded objects SHALL be stored outside the web root and served only through the CDN.", "No direct bucket access.", "Non-functional", "Security"],
+ ["NFR-SEC-007", "Public endpoints SHALL be rate-limited by IP.", "120 requests/minute default.", "Non-functional", "Security"],
+ ["NFR-SEC-008", "Admin write endpoints SHALL be rate-limited per account.", "Blunts a compromised token.", "Non-functional", "Security"],
+ ["NFR-SEC-009", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "Annex A7.", "Non-functional", "Security"],
+ ["NFR-SEC-010", "Search and filter inputs SHALL be parameterised.", "No string-built SQL anywhere.", "Non-functional", "Security"],
+ ["NFR-PRIV-001", "This module SHALL hold no customer personal data.", "Catalog is reference data.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-002", "Admin identifiers on audit records SHALL be identifiers, not names or emails.", "Resolve at read time.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-003", "Logs SHALL NOT contain tokens, presigned URLs or request bodies from write endpoints.", "Presigned URLs are credentials.", "Non-functional", "Privacy"],
+ ["NFR-PERF-001", "Event list p95 SHALL be under 300 ms at origin.", "Excludes edge hits.", "Non-functional", "Performance"],
+ ["NFR-PERF-002", "Event detail p95 SHALL be under 250 ms at origin.", "Single event, one language.", "Non-functional", "Performance"],
+ ["NFR-PERF-003", "Edge-served responses SHALL reach the client in under 100 ms within the region.", "The point of the CDN.", "Non-functional", "Performance"],
+ ["NFR-PERF-004", "List endpoints SHALL issue a bounded number of queries regardless of page size.", "No N+1 on translations or media.", "Non-functional", "Performance"],
+ ["NFR-PERF-005", "Media processing SHALL happen outside the request.", "Upload confirms immediately.", "Non-functional", "Performance"],
+ ["NFR-PERF-006", "Admin list screens SHALL remain under 500 ms p95 with 10,000 events.", "Filters must be index-backed.", "Non-functional", "Performance"],
+ ["NFR-SCAL-001", "The API SHALL be stateless and horizontally scalable.", "No in-process session or cache affinity.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-002", "The module SHALL sustain a 20× read spike on public endpoints without a write-path impact.", "On-sale scenario.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-003", "Every filter, sort and lookup column SHALL be indexed, including translation lookups.", "(event_id, language), (language, slug).", "Non-functional", "Scalability"],
+ ["NFR-SCAL-004", "Outbox dispatch SHALL be a background worker able to run more than once concurrently.", "Safe under duplicate delivery.", "Non-functional", "Scalability"],
+ ["NFR-AVAIL-001", "Public read endpoints SHALL target 99.9% monthly availability.", "Browse must survive an admin outage.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-002", "A stale edge response SHALL be served when the origin is unavailable.", "stale-if-error=86400.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-003", "The database SHALL have automated backups with point-in-time recovery.", "RPO ≤ 15 min, RTO ≤ 4 h.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-004", "Migrations SHALL be backward-compatible within a release.", "Expand, migrate, contract.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-005", "Media storage SHALL be durable and versioned.", "An overwrite must be recoverable.", "Non-functional", "Availability"],
+ ["NFR-OBS-001", "Logs SHALL be structured and carry a correlation identifier across the request and its outbox dispatch.", "One trace, publish to notification.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-002", "The module SHALL expose liveness and readiness endpoints.", "Readiness checks database and outbox lag.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-003", "Outbox lag, publish failures and cache-invalidation failures SHALL be metrics with alerts.", "Silent failure here is invisible.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-004", "Publish, postpone, cancel, archive and map-publish SHALL be recorded append-only with actor and before/after state.", "Retained per platform policy.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-005", "Unhandled exceptions SHALL be reported to error monitoring in every environment.", "Including development.", "Non-functional", "Observability and audit"],
+ ["NFR-COMPAT-001", "The API SHALL serve web and mobile clients from the same endpoints with no client-type branching in business logic.", "Shape varies by view, not by client.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-002", "Additive response changes SHALL NOT break existing clients.", "Clients ignore unknown fields.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-003", "The OpenAPI document SHALL be sufficient to generate a Flutter client without manual patching.", "Contract requirement.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-004", "Dates SHALL be ISO 8601 with offset; money SHALL carry an explicit currency.", "No implicit local time.", "Non-functional", "Compatibility"],
+ ["NFR-LOC-001", "en, ar and ckb SHALL be supported end to end, including search.", "ckb, not ku.", "Non-functional", "Localisation"],
+ ["NFR-LOC-002", "Text SHALL be stored and returned as UTF-8 with correct collation for Arabic script.", "Sorting must not be byte order.", "Non-functional", "Localisation"],
+ ["NFR-LOC-003", "Responses SHALL declare text direction per language.", "ar and ckb are RTL.", "Non-functional", "Localisation"],
+ ["NFR-LOC-004", "A missing translation SHALL degrade to English, never to an empty string or an error.", "Silent fallback.", "Non-functional", "Localisation"],
+ ["NFR-MAINT-001", "The module SHALL own one schema and one DbContext, and SHALL map no table outside it.", "Enforced by an architecture test.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-002", "No other module SHALL reference this module's internals; only its contract project.", "Architecture test in CI.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-003", "Publish readiness, status transitions and translation fallback SHALL have automated tests.", "The rules most likely to regress.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-004", "Migrations SHALL run clean from an empty database, and seed data SHALL be repeatable.", "Fresh environment in one command.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-005", "Configuration SHALL come from environment variables, documented in a catalogue.", "Contract requirement, Annex A7.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-006", "CI SHALL run build, tests and migration verification on every push.", "Contract requirement, Annex A1.", "Non-functional", "Maintainability"],
+]};
+
+/* requirement → what implements it */
+const TRACE={
+ 'FR-PLAT-LOC-001':{t:['event_translations','event_category_translations','venue_translations','ticket_category_translations'],e:['LocalizedText']},
+ 'FR-PLAT-LOC-002':{t:[],e:['LocalizedText']},
+ 'FR-PLAT-LOC-003':{t:['event_translations'],e:['LocalizedText']},
+ 'FR-PLAT-LOC-004':{t:['event_translations'],e:['LocalizedText']},
+ 'FR-PLAT-MED-001':{t:['event_media'],e:[]},
+ 'FR-PLAT-MED-004':{t:['event_media'],e:[]},
+ 'FR-PLAT-MED-005':{t:['event_media'],e:[]},
+ 'FR-PLAT-EVT-002':{t:['events','venue_maps','ticket_categories'],e:['Event','Venue','EventCategory']},
+ 'FR-PLAT-CON-002':{t:['events','venue_map_seats','ticket_categories'],e:['Event','Venue']},
+ 'FR-PLAT-CON-003':{t:['events'],e:['Event']},
+ 'FR-PLAT-CON-004':{t:['events'],e:['Event']},
+ 'FR-ADM-CAT-001':{t:['event_categories','event_category_translations'],e:['EventCategory','LocalizedText']},
+ 'FR-ADM-CAT-002':{t:['event_categories'],e:['EventCategory']},
+ 'FR-ADM-CAT-003':{t:['event_categories'],e:['EventCategory']},
+ 'FR-ADM-CAT-004':{t:['event_categories'],e:['EventCategory']},
+ 'FR-ADM-CAT-005':{t:['event_categories','events'],e:['EventCategory','Event']},
+ 'FR-ADM-CAT-006':{t:['event_categories'],e:['EventCategory']},
+ 'FR-ADM-CAT-007':{t:['event_categories'],e:['EventCategory']},
+ 'FR-ADM-CAT-009':{t:['event_categories'],e:['EventCategory']},
+ 'FR-ADM-VEN-001':{t:['venues'],e:['Venue']},
+ 'FR-ADM-VEN-002':{t:['venues'],e:['Venue']},
+ 'FR-ADM-VEN-003':{t:['venue_translations'],e:['Venue','LocalizedText']},
+ 'FR-ADM-VEN-004':{t:['venue_maps','events'],e:['Venue','VenueMap']},
+ 'FR-ADM-VEN-005':{t:['venues','events'],e:['Venue']},
+ 'FR-ADM-MAP-001':{t:['venue_maps'],e:['VenueMap']},
+ 'FR-ADM-MAP-002':{t:['venue_map_sections','venue_map_rows','venue_map_seats'],e:['Venue','Seat']},
+ 'FR-ADM-MAP-003':{t:['venue_map_seats'],e:['Venue','Seat']},
+ 'FR-ADM-MAP-004':{t:['venue_maps','venue_map_sections'],e:['VenueMap']},
+ 'FR-ADM-MAP-005':{t:['venue_maps'],e:['VenueMap']},
+ 'FR-ADM-MAP-006':{t:['venue_map_sections','venue_map_seats'],e:['Venue','VenueMap']},
+ 'FR-ADM-EVT-002':{t:['events'],e:['Event']},
+ 'FR-ADM-EVT-003':{t:['events'],e:['Event']},
+ 'FR-ADM-EVT-004':{t:['events'],e:['Event']},
+ 'FR-ADM-EVT-005':{t:['events','event_categories'],e:['Event','EventCategory']},
+ 'FR-ADM-EVT-006':{t:['event_translations'],e:['Event','LocalizedText']},
+ 'FR-ADM-EVT-007':{t:['events','venues'],e:['Event','Venue']},
+ 'FR-ADM-EVT-008':{t:['events'],e:['Event','TicketingMode']},
+ 'FR-ADM-EVT-009':{t:['events','venue_maps'],e:['Event','TicketingMode','VenueMap']},
+ 'FR-ADM-EVT-010':{t:['events'],e:['Event']},
+ 'FR-ADM-EVT-011':{t:['events','event_translations','event_media','ticket_categories'],e:['Event']},
+ 'FR-ADM-EVT-012':{t:['events'],e:['Event']},
+ 'FR-ADM-EVT-013':{t:['events'],e:['Event']},
+ 'FR-ADM-EVT-014':{t:['events'],e:['Event']},
+ 'FR-ADM-TKT-001':{t:['ticket_categories'],e:['TicketCategory']},
+ 'FR-ADM-TKT-002':{t:['ticket_category_translations'],e:['TicketCategory','LocalizedText']},
+ 'FR-ADM-TKT-003':{t:['ticket_categories'],e:['TicketCategory']},
+ 'FR-ADM-TKT-004':{t:['ticket_categories'],e:['TicketCategory']},
+ 'FR-ADM-TKT-005':{t:['activity_booking_categories'],e:['ActivityBookingCategory']},
+ 'FR-ADM-TKT-006':{t:['activity_booking_categories'],e:['ActivityBookingCategory']},
+ 'FR-ADM-MED-001':{t:['event_media'],e:['Event']},
+ 'FR-ADM-MED-002':{t:['events'],e:['Event']},
+ 'FR-ADM-MED-003':{t:['events'],e:['Event']},
+ 'FR-ADM-PRO-001':{t:['events'],e:['PromotionState']},
+ 'FR-ADM-PRO-002':{t:['events'],e:['PromotionState']},
+ 'FR-ADM-PRO-003':{t:['events'],e:['PromotionState']},
+ 'FR-ADM-PRO-004':{t:['events'],e:['PromotionState']},
+ 'FR-PUB-BRW-001':{t:['events'],e:['Event']},
+ 'FR-PUB-BRW-003':{t:['events','event_categories','venues'],e:['Event']},
+ 'FR-PUB-BRW-005':{t:['events','venues'],e:['Event']},
+ 'FR-PUB-BRW-006':{t:['ticket_categories'],e:['TicketCategory']},
+ 'FR-PUB-HOM-001':{t:['events'],e:['PromotionState']},
+ 'FR-PUB-HOM-002':{t:['event_categories'],e:['EventCategory']},
+ 'FR-PUB-HOM-003':{t:['events'],e:['PromotionState']},
+ 'FR-PUB-DET-001':{t:['events','event_translations','venues'],e:['Event']},
+ 'FR-PUB-DET-002':{t:['event_media'],e:['Event']},
+ 'FR-PUB-DET-003':{t:['events'],e:['TicketingMode']},
+ 'FR-PUB-DET-004':{t:['venue_map_sections','venue_map_rows','venue_map_seats','events'],e:['Venue','Seat']},
+ 'FR-PUB-DET-005':{t:['ticket_categories'],e:['TicketCategory']},
+ 'FR-PUB-DET-006':{t:['event_translations'],e:['Event']},
+ 'FR-PUB-DET-007':{t:['events'],e:['Event']},
+ 'FR-PUB-SRC-001':{t:['events','event_translations','venues'],e:['Event']},
+ 'FR-AGT-SRC-003':{t:['events','venues'],e:['Event']},
+ 'FR-AGT-SRC-005':{t:['events'],e:['Event']},
+ 'NFR-SCAL-003':{t:['event_translations','event_categories'],e:[]},
+ 'NFR-LOC-002':{t:['event_translations'],e:['LocalizedText']},
+ 'NFR-MAINT-001':{t:[],e:[]}
+};
+const REQ_BY_TABLE={},REQ_BY_ENT={};
+Object.keys(TRACE).forEach(id=>{
+  (TRACE[id].t||[]).forEach(t=>(REQ_BY_TABLE[t]=REQ_BY_TABLE[t]||[]).push(id));
+  (TRACE[id].e||[]).forEach(e=>(REQ_BY_ENT[e]=REQ_BY_ENT[e]||[]).push(id));
+});
+
+/* ════════ routing ════════ */
+const META={map:['The backend map.','Every module, and how they depend on each other.','Level 1']};
+Object.keys(M).forEach(k=>{
+  META['mod-'+k]=[k,M[k].sub||M[k].what,'Level 2 · module'];
+  META['erd-'+k]=[k+' — tables',(TABLES[k]?TABLES[k].length:M[k].tables)+' tables in schema '+k,'Level 3 · ERD'];
+  META['dom-'+k]=[k+' — domain',(ENT[k]?ENT[k].length+' types in the code':'not modelled yet'),'Level 3 · domain'];
+  META['req-'+k]=[k+' — requirements',(REQS[k]?REQS[k].length+' functional and non-functional requirements':'not specified yet'),'Level 3 · requirements'];
+});
+Object.keys(TABLES).forEach(m=>TABLES[m].forEach(t=>META['tbl-'+t[0]]=[t[0],'','Level 4 · table']));
+Object.keys(ENT).forEach(m=>ENT[m].forEach(e=>META['ent-'+e[0]]=[e[0],e[1],'Level 4 · type']));
+const PARENT={};
+Object.keys(M).forEach(k=>{PARENT['mod-'+k]='map';PARENT['erd-'+k]='mod-'+k;PARENT['dom-'+k]='mod-'+k;PARENT['req-'+k]='mod-'+k});
+const TBL_MOD={},ENT_MOD={};
+Object.keys(TABLES).forEach(m=>TABLES[m].forEach(t=>{TBL_MOD[t[0]]=m;PARENT['tbl-'+t[0]]='erd-'+m}));
+Object.keys(ENT).forEach(m=>ENT[m].forEach(e=>{ENT_MOD[e[0]]=m;PARENT['ent-'+e[0]]='dom-'+m}));
+const REQ_MOD={},REQ_BY_ID={},REQ_TREE={},SLUG={};
+const slug=x=>x.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+Object.keys(REQS).forEach(m=>{
+  REQ_TREE[m]={};
+  REQS[m].forEach(r=>{
+    REQ_MOD[r[0]]=m;REQ_BY_ID[r[0]]=r;
+    const sf=r[3],ar=r[4];
+    (REQ_TREE[m][sf]=REQ_TREE[m][sf]||{})[ar]=(REQ_TREE[m][sf][ar]||[]).concat([r]);
+    SLUG[slug(sf)]=sf;SLUG[slug(ar)]=ar;
+  });
+  Object.keys(REQ_TREE[m]).forEach(sf=>{
+    const sk='reqs-'+m+'~'+slug(sf);
+    const n=Object.values(REQ_TREE[m][sf]).reduce((a,b)=>a+b.length,0);
+    META[sk]=[sf,n+' requirements across '+Object.keys(REQ_TREE[m][sf]).length+' areas','Level 4 · surface'];
+    PARENT[sk]='req-'+m;
+    Object.keys(REQ_TREE[m][sf]).forEach(ar=>{
+      const ak='reqa-'+m+'~'+slug(sf)+'~'+slug(ar);
+      META[ak]=[ar,sf+' · '+REQ_TREE[m][sf][ar].length+' requirements','Level 5 · area'];
+      PARENT[ak]=sk;
+      REQ_TREE[m][sf][ar].forEach(r=>{
+        META['rq-'+r[0]]=[r[0],sf+' · '+ar,'Level 6 · requirement'];PARENT['rq-'+r[0]]=ak;
+      });
+    });
+  });
+});
+
+const el=(t,c,h)=>{const n=document.createElement(t);if(c)n.className=c;if(h!==undefined)n.innerHTML=h;return n};
+const stage=document.getElementById('stage'),scroll=document.getElementById('scroll');
+let cur=null,pendingHL=null;
+
+/* ════════ search index ════════ */
+const clean=s=>String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&rarr;/g,'→').replace(/&le;/g,'≤').replace(/&ge;/g,'≥').replace(/&times;/g,'×');
+const ALLT=new Set();Object.keys(TABLES).forEach(m=>TABLES[m].forEach(t=>ALLT.add(t[0])));
+function fkTarget(col){
+  if(!/_id$/.test(col))return null;
+  const b=col.replace(/_id$/,'');
+  for(const c of [b+'s',b.replace(/y$/,'ie')+'s',b,b+'es'])if(ALLT.has(c))return c;
+  return null;
+}
+const IX=[];
+Object.keys(M).forEach(k=>IX.push({g:'Modules',l:k,s:M[k].what,r:M[k].status==='active'?'mod-'+k:null,w:3}));
+Object.keys(TABLES).forEach(m=>TABLES[m].forEach(t=>{
+  IX.push({g:'Tables',l:t[0],s:'schema '+m+' · '+t[2].length+' columns',r:'tbl-'+t[0],w:2});
+  t[2].forEach(c=>clean(c[0]).split('·').forEach(n=>{
+    n=n.trim();if(!n)return;
+    const tgt=fkTarget(n);
+    IX.push({g:'Columns',l:n,s:t[0]+(c[1]?' — '+clean(c[1]):'')+(tgt?' → '+tgt:''),r:'tbl-'+t[0],hl:c[0],w:1});
+    if(tgt)IX.push({g:'Columns',l:n,s:'points at '+tgt,r:'tbl-'+tgt,w:.5});
+  }));
+  if(typeof t[3]==='object'&&t[3])IX.push({g:'Rules',l:clean(t[3].s),s:t[0],r:'tbl-'+t[0],w:0});
+}));
+Object.keys(REQS).forEach(m=>REQS[m].forEach(r=>{
+  const tr=TRACE[r[0]],impl=tr?[...(tr.t||[]),...(tr.e||[])]:[];
+  const where=impl.length?' → '+impl.slice(0,3).join(' · ')+(impl.length>3?' +'+(impl.length-3):''):'';
+  IX.push({g:'Requirements',l:r[0],s:r[3]+' · '+r[4]+where,r:'rq-'+r[0],w:2});
+  IX.push({g:'Requirements',l:r[1],s:r[0]+where,r:'rq-'+r[0],w:0});
+  if(r[2])IX.push({g:'Requirements',l:r[2],s:r[0]+' · acceptance',r:'rq-'+r[0],w:0});
+  impl.forEach(x=>IX.push({g:'Traceability',l:r[0]+' → '+x,s:r[1].slice(0,60),r:'rq-'+r[0],w:.5}));
+}));
+Object.keys(REQ_BY_TABLE).forEach(t=>IX.push({g:'Traceability',
+  l:t+' carries '+REQ_BY_TABLE[t].length+' requirements',s:REQ_BY_TABLE[t].slice(0,4).join(' · '),r:'tbl-'+t,w:1}));
+Object.keys(REQ_BY_ENT).forEach(e=>IX.push({g:'Traceability',
+  l:e+' enforces '+REQ_BY_ENT[e].length+' requirements',s:REQ_BY_ENT[e].slice(0,4).join(' · '),r:'ent-'+e,w:1}));
+Object.keys(REQ_TREE).forEach(m=>Object.keys(REQ_TREE[m]).forEach(sf=>{
+  IX.push({g:'Requirements',l:sf+' requirements',s:'module '+m,r:'reqs-'+m+'~'+slug(sf),w:1.5});
+  Object.keys(REQ_TREE[m][sf]).forEach(ar=>IX.push({g:'Requirements',l:ar,
+    s:sf+' · '+REQ_TREE[m][sf][ar].length+' requirements',r:'reqa-'+m+'~'+slug(sf)+'~'+slug(ar),w:1.2}));
+}));
+Object.keys(ENT).forEach(m=>ENT[m].forEach(e=>{
+  IX.push({g:'Domain types',l:e[0],s:e[1]+' · module '+m,r:'ent-'+e[0],w:2});
+  e[4].forEach(p=>IX.push({g:'Properties',l:clean(p[0]),s:e[0],r:'ent-'+e[0],hl:p[0],w:1}));
+  e[5].forEach(x=>IX.push({g:'Behaviour',l:clean(x[0]),s:e[0],r:'ent-'+e[0],hl:x[0],w:1}));
+  e[6].forEach(i=>IX.push({g:'Invariants',l:clean(i),s:e[0],r:'ent-'+e[0],w:0}));
+  e[7].forEach(v=>IX.push({g:'Domain events',l:v,s:e[0]+' publishes it',r:'ent-'+e[0],w:1}));
+}));
+const GORDER=['Modules','Requirements','Traceability','Tables','Columns','Domain types','Properties','Behaviour','Domain events','Invariants','Rules'];
+
+function score(q,s){
+  s=s.toLowerCase();
+  if(s===q)return 1000;
+  if(s.startsWith(q))return 800-s.length;
+  const i=s.indexOf(q);
+  if(i>-1)return 600-i*3-s.length*.2;
+  let qi=0;for(let j=0;j<s.length&&qi<q.length;j++)if(s[j]===q[qi])qi++;
+  return qi===q.length?200-s.length*.2:-1;
+}
+function search(q){
+  q=q.trim().toLowerCase();if(!q)return [];
+  const out=[];
+  IX.forEach(e=>{
+    if(!e.r)return;
+    let sc=score(q,e.l);
+    if(sc<0&&e.s){const s2=score(q,e.s);if(s2>0)sc=s2*.35}
+    if(sc>0)out.push({e,sc:sc+e.w*40});
+  });
+  out.sort((a,b)=>b.sc-a.sc);
+  return out.slice(0,40).map(x=>x.e);
+}
+function hl(text,q){
+  const i=text.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0)return esc(text);
+  return esc(text.slice(0,i))+'<mark>'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+const pal=document.getElementById('pal'),palq=document.getElementById('palq'),palres=document.getElementById('palres');
+let hits=[],sel=0;
+function openPal(){pal.classList.add('on');palq.value='';palq.focus();renderPal()}
+function closePal(){pal.classList.remove('on')}
+function renderPal(){
+  const q=palq.value.trim();
+  hits=search(q);sel=0;
+  if(!q){
+    palres.innerHTML='<div class="palempty">Type a table, column, type or rule.<br>Try <b>city_id</b>, <b>Cancel</b>, or <b>seat</b>.</div>';
+    return;
+  }
+  if(!hits.length){palres.innerHTML='<div class="palempty">Nothing matches “'+esc(q)+'”.</div>';return}
+  const by={};hits.forEach((h,i)=>{(by[h.g]=by[h.g]||[]).push([h,i])});
+  let out='';
+  GORDER.filter(g=>by[g]).forEach(g=>{
+    out+='<div class="palgrp">'+g+'</div>';
+    by[g].slice(0,8).forEach(([h,i])=>{
+      out+='<div class="palrow'+(i===0?' sel':'')+'" data-i="'+i+'"><span class="l">'+hl(h.l,q)+
+        '</span><span class="s">'+esc(h.s||'')+'</span></div>';
+    });
+  });
+  palres.innerHTML=out;
+  palres.querySelectorAll('.palrow').forEach(r=>{
+    r.onmouseenter=()=>{sel=+r.dataset.i;mark()};
+    r.onclick=()=>pick(+r.dataset.i);
+  });
+}
+function mark(){
+  palres.querySelectorAll('.palrow').forEach(r=>r.classList.toggle('sel',+r.dataset.i===sel));
+  const c=palres.querySelector('.palrow.sel');if(c)c.scrollIntoView({block:'nearest'});
+}
+function pick(i){
+  const h=hits[i];if(!h||!h.r)return;
+  pendingHL=h.hl||null;closePal();go(h.r);
+}
+palq.addEventListener('input',renderPal);
+pal.addEventListener('mousedown',e=>{if(e.target===pal)closePal()});
+palq.addEventListener('keydown',e=>{
+  const vis=[...palres.querySelectorAll('.palrow')].map(r=>+r.dataset.i);
+  if(e.key==='ArrowDown'){e.preventDefault();const p=vis.indexOf(sel);sel=vis[Math.min(p+1,vis.length-1)]??sel;mark()}
+  else if(e.key==='ArrowUp'){e.preventDefault();const p=vis.indexOf(sel);sel=vis[Math.max(p-1,0)]??sel;mark()}
+  else if(e.key==='Enter'){e.preventDefault();pick(sel)}
+  else if(e.key==='Escape'){e.preventDefault();closePal()}
+});
+document.getElementById('searchbtn').onclick=openPal;
+const help=document.getElementById('help');
+function openHelp(){help.classList.add('on')}
+function closeHelp(){help.classList.remove('on')}
+document.getElementById('helpx').onclick=closeHelp;
+help.addEventListener('mousedown',e=>{if(e.target===help)closeHelp()});
+
+function applyHighlight(){
+  if(!pendingHL)return;
+  const want=pendingHL;pendingHL=null;
+  let node=null;
+  stage.querySelectorAll('.rowc .cn').forEach(n=>{if(!node&&n.textContent.trim()===clean(want).trim())node=n.parentNode});
+  if(!node)stage.querySelectorAll('.blk .li code').forEach(n=>{if(!node&&n.textContent.trim()===clean(want).trim())node=n.parentNode});
+  if(node){node.classList.add('hit');node.scrollIntoView({block:'center',behavior:'smooth'});
+    setTimeout(()=>node.classList.remove('hit'),2600)}
+}
+function gap(){return el('div','gap')}
+function head(k,mono){const m=META[k];
+  return el('div','ph','<span class="lvl">'+(m[2]||'')+'</span><h1'+(mono?' class="mono"':'')+'>'+m[0]+'</h1>'+(m[1]?'<p>'+m[1]+'</p>':''))}
+
+/* ── L1 map ── */
+function viewMap(){
+  const w=el('div','wrap');w.appendChild(head('map'));
+  const mw=el('div','mapwrap');
+  mw.innerHTML='<svg class="wires" id="wires"></svg>';
+  const lanes=el('div','lanes');
+  LANES.forEach(L=>{
+    const lane=el('div','lane');lane.appendChild(el('div','lbl',L));
+    const nodes=el('div','nodes');
+    Object.keys(M).filter(k=>M[k].lane===L).forEach(k=>{
+      const m=M[k],on=m.status==='active';
+      const n=el(on?'button':'div','node'+(on?'':' planned'));
+      n.dataset.mod=k;
+      n.innerHTML='<div class="nm"><span class="dot" style="background:var(--'+(on?'purple':'muted')+')"></span>'+k+'</div>'+
+        '<p>'+m.what+'</p><div class="cnt">'+m.tables+' tables'+(on?'':' · planned')+'</div>';
+      if(on)n.onclick=()=>go('mod-'+k);
+      n.onmouseenter=()=>focus(k);n.onmouseleave=clearFocus;
+      nodes.appendChild(n);
+    });
+    lane.appendChild(nodes);lanes.appendChild(nodes.parentNode===lane?nodes:nodes);
+    mw.appendChild(lane);
+  });
+  mw.appendChild(lanes);
+  w.appendChild(mw);
+  w.appendChild(el('div','gap'));
+  w.appendChild(el('div','callout c-blue','<b>Hover a module to light up what it touches.</b>'+
+    '<span class="sub">A line means one module holds an id from another, or listens to its events. Never a foreign key — those stop at the schema boundary.</span>'));
+  requestAnimationFrame(()=>drawWires());
+  return w;
+}
+function nodeEl(k){return stage.querySelector('.node[data-mod="'+k+'"]')}
+function drawWires(){
+  const svg=document.getElementById('wires');if(!svg)return;
+  const host=svg.parentNode,hb=host.getBoundingClientRect();
+  svg.setAttribute('viewBox','0 0 '+hb.width+' '+hb.height);
+  svg.style.height=hb.height+'px';
+  let out='';
+  LINKS.forEach(([a,b])=>{
+    const ea=nodeEl(a),eb=nodeEl(b);if(!ea||!eb)return;
+    const ra=ea.getBoundingClientRect(),rb=eb.getBoundingClientRect();
+    const x1=ra.left-hb.left+ra.width/2,y1=ra.top-hb.top,x2=rb.left-hb.left+rb.width/2,y2=rb.top-hb.top+rb.height;
+    const dy=Math.max(24,Math.abs(y1-y2)/2);
+    out+='<path data-a="'+a+'" data-b="'+b+'" d="M'+x1+' '+y1+' C'+x1+' '+(y1-dy)+' '+x2+' '+(y2+dy)+' '+x2+' '+y2+'"/>';
+  });
+  svg.innerHTML=out;
+}
+function focus(k){
+  const mw=stage.querySelector('.mapwrap'),svg=document.getElementById('wires');if(!mw)return;
+  mw.classList.add('focus');svg.classList.add('focus');
+  const lit=new Set([k]);
+  LINKS.forEach(([a,b])=>{if(a===k)lit.add(b);if(b===k)lit.add(a)});
+  mw.querySelectorAll('.node').forEach(n=>n.classList.toggle('lit',lit.has(n.dataset.mod)));
+  svg.querySelectorAll('path').forEach(p=>p.classList.toggle('hot',p.dataset.a===k||p.dataset.b===k));
+}
+function clearFocus(){
+  const mw=stage.querySelector('.mapwrap'),svg=document.getElementById('wires');if(!mw)return;
+  mw.classList.remove('focus');svg.classList.remove('focus');
+  mw.querySelectorAll('.node').forEach(n=>n.classList.remove('lit'));
+  svg.querySelectorAll('path').forEach(p=>p.classList.remove('hot'));
+}
+
+/* ── L2 module ── */
+const ICON_DB='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>';
+const ICON_REQ='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M10 8h4M10 12h4M10 16h2"/></svg>';
+const ICON_DOM='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="8.5" y="14" width="7" height="7" rx="2"/><path d="M6.5 10v2.5h11V10M12 12.5V14"/></svg>';
+function viewModule(k){
+  const m=M[k];
+  const w=el('div','wrap');
+  w.appendChild(el('div','ph','<span class="lvl">Level 2 · module</span><h1 class="mono">'+k+'</h1><p>'+m.what+'</p>'));
+  if(m.status!=='active'){
+    w.appendChild(el('div','empty','<h2>Not started yet.</h2><p>This module is on the map so the dependencies are visible, but it has not been worked through. '+
+      m.tables+' tables are expected in schema <code>'+k+'</code>.</p>'));
+    return w;
+  }
+  const b=el('div','branches');
+  const erd=el('button','branch','<div class="ic" style="background:var(--blue-bg);color:var(--blue)">'+ICON_DB+'</div>'+
+    '<h4>ERD</h4><p>The tables in schema <code>'+k+'</code>, every column, and what references what.</p>'+
+    '<div class="list">'+TABLES[k].slice(0,8).map(t=>'<span>'+t[0]+'</span>').join('')+
+    (TABLES[k].length>8?'<span>+'+(TABLES[k].length-8)+'</span>':'')+'</div>');
+  erd.onclick=()=>go('erd-'+k);
+  const dom=el('button','branch','<div class="ic" style="background:var(--purple-bg);color:var(--purple)">'+ICON_DOM+'</div>'+
+    '<h4>Domain</h4><p>The entities in the code — aggregates, entities and value objects, with the rules they enforce.</p>'+
+    '<div class="list">'+ENT[k].slice(0,8).map(e=>'<span>'+e[0]+'</span>').join('')+
+    (ENT[k].length>8?'<span>+'+(ENT[k].length-8)+'</span>':'')+'</div>');
+  dom.onclick=()=>go('dom-'+k);
+  const req=el('button','branch','<div class="ic" style="background:var(--green-bg);color:var(--green)">'+ICON_REQ+'</div>'+
+    '<h4>Requirements</h4><p>What this module must do, and how well, across every surface it serves.</p>'+
+    '<div class="list">'+[...new Set(REQS[k].map(r=>r[3]))].map(g=>'<span>'+g+'</span>').join('')+
+    '<span>'+REQS[k].length+' total</span></div>');
+  req.onclick=()=>go('req-'+k);
+  b.appendChild(req);b.appendChild(erd);b.appendChild(dom);w.appendChild(b);
+  w.appendChild(el('h3','sec','What it touches'));
+  const g=el('div','grid2');
+  const outg=LINKS.filter(l=>l[0]===k),ing=LINKS.filter(l=>l[1]===k);
+  g.appendChild(el('div','blk','<h5>Depends on</h5>'+(outg.length?outg.map(l=>
+    '<div class="li"><code>'+l[1]+'</code><em>'+l[2]+'</em></div>').join(''):'<div class="li">Nothing.<em>It is the root of the graph.</em></div>')));
+  g.appendChild(el('div','blk','<h5>Depended on by</h5>'+(ing.length?ing.map(l=>
+    '<div class="li"><code>'+l[0]+'</code><em>'+l[2]+'</em></div>').join(''):'<div class="li">Nothing yet.</div>')));
+  w.appendChild(g);
+  return w;
+}
+
+/* ── L3 erd ── */
+function viewErd(k){
+  const w=el('div','wrap');w.appendChild(head('erd-'+k));
+  const c=el('div','cols');
+  TABLES[k].forEach(([name,badge,rows,note])=>{
+    const card=el('button','tcard'+(badge?' flag':''));
+    const bt=badge==='new'?'<span class="tag t-green">new</span>':badge==='changed'?'<span class="tag t-orange">changed</span>':'';
+    card.appendChild(el('header',null,'<b>'+name+'</b>'+bt+'<span class="cnt">'+rows.length+'</span>'));
+    rows.slice(0,5).forEach(([cn,cm,kind])=>card.appendChild(el('div','rowc'+(kind?' '+kind:''),
+      '<span class="cn">'+cn+'</span><span class="cm">'+(cm||'')+'</span>')));
+    if(rows.length>5)card.appendChild(el('div','more','+ '+(rows.length-5)+' more &rarr;'));
+    else if(note)card.appendChild(typeof note==='string'?el('div','tnote',note):el('div','tnote '+note.t,note.s));
+    card.onclick=()=>go('tbl-'+name);
+    c.appendChild(card);
+  });
+  w.appendChild(c);return w;
+}
+/* ── L4 table ── */
+function viewTable(name){
+  const mod=TBL_MOD[name],row=TABLES[mod].find(t=>t[0]===name);
+  const w=el('div','wrap narrow');
+  w.appendChild(el('div','ph','<span class="lvl">Level 4 · table · schema '+mod+'</span><h1 class="mono">'+name+'</h1>'+
+    (typeof row[3]==='string'&&row[3]?'<p>'+row[3]+'</p>':'')));
+  const card=el('div','tcard flag');
+  card.appendChild(el('header',null,'<b>columns</b><span class="cnt">'+row[2].length+'</span>'));
+  row[2].forEach(([cn,cm,kind])=>card.appendChild(el('div','rowc'+(kind?' '+kind:''),
+    '<span class="cn">'+cn+'</span><span class="cm">'+(cm||'')+'</span>')));
+  if(row[3]&&typeof row[3]==='object')card.appendChild(el('div','tnote '+row[3].t,row[3].s));
+  w.appendChild(card);
+  const ents=(ENT[mod]||[]).filter(e=>e[3].indexOf(name)>-1||e[3].indexOf('*_translations')>-1&&/_translations$/.test(name));
+  if(ents.length){
+    w.appendChild(el('h3','sec','Mapped from'));
+    const b=el('div','blk'),rl=el('div','reflist');
+    ents.forEach(e=>{const btn=el('button',null,'<span class="mono">'+e[0]+'</span><span class="why">'+e[1]+'</span>');
+      btn.onclick=()=>go('ent-'+e[0]);rl.appendChild(btn)});
+    b.appendChild(rl);w.appendChild(b);
+  }
+  const sb=satisfiesBlock(REQ_BY_TABLE[name],'Requirements it carries');
+  if(sb)w.appendChild(sb);
+  const inb=REFBY[name]||[];
+  if(inb.length){
+    w.appendChild(el('h3','sec','Pointed at by'));
+    const b=el('div','blk'),rl=el('div','reflist');
+    inb.forEach(n=>{const btn=el('button',null,'<span class="mono">'+n+'</span><span class="why">'+(TBL_MOD[n]||'')+'</span>');
+      if(TBL_MOD[n])btn.onclick=()=>go('tbl-'+n);rl.appendChild(btn)});
+    b.appendChild(rl);w.appendChild(b);
+  }
+  return w;
+}
+/* ── L3 domain ── */
+function viewDomain(k){
+  const w=el('div','wrap');w.appendChild(head('dom-'+k));
+  const c=el('div','cols');
+  ENT[k].forEach(([name,kind,col,tables,props])=>{
+    const card=el('button','tcard'+(kind==='Aggregate root'?' flag':''));
+    card.appendChild(el('header',null,'<b>'+name+'</b><span class="tag t-'+col+'">'+kind.toLowerCase()+'</span>'+
+      '<span class="cnt">'+props.length+'</span>'));
+    props.slice(0,5).forEach(([p,note])=>card.appendChild(el('div','rowc',
+      '<span class="cn">'+p+'</span><span class="cm">'+(note||'')+'</span>')));
+    if(props.length>5)card.appendChild(el('div','more','+ '+(props.length-5)+' more &rarr;'));
+    else card.appendChild(el('div','tnote','maps to '+tables.join(' · ')));
+    card.onclick=()=>go('ent-'+name);
+    c.appendChild(card);
+  });
+  w.appendChild(c);
+  w.appendChild(el('div','callout c-blue','<b>Domain means the entities in the code, not the database.</b>'+
+    '<span class="sub">An aggregate root owns a consistency rule and a transaction boundary. Entities live inside one. Value objects have no identity and never change.</span>'));
+  return w;
+}
+/* ── L4 entity ── */
+function viewEntity(name){
+  const mod=ENT_MOD[name],e=ENT[mod].find(x=>x[0]===name);
+  const [n,kind,col,tables,props,methods,invariants,events]=e;
+  const w=el('div','wrap narrow');
+  w.appendChild(el('div','ph','<span class="lvl">Level 4 · '+kind.toLowerCase()+' · module '+mod+'</span><h1 class="mono">'+n+'</h1>'));
+  const card=el('div','tcard flag');
+  card.appendChild(el('header',null,'<b>properties</b><span class="cnt">'+props.length+'</span>'));
+  props.forEach(([p,note])=>card.appendChild(el('div','rowc','<span class="cn">'+p+'</span><span class="cm">'+(note||'')+'</span>')));
+  w.appendChild(card);
+  if(methods.length){
+    w.appendChild(el('h3','sec','Behaviour'));
+    const b=el('div','blk');
+    methods.forEach(([m2,note])=>b.appendChild(el('div','li','<code>'+m2+'</code>'+(note?'<em>'+note+'</em>':''))));
+    w.appendChild(b);
+  }
+  if(invariants.length){
+    w.appendChild(el('h3','sec','Invariants it protects'));
+    const b=el('div','blk');
+    invariants.forEach(i=>b.appendChild(el('div','li',i)));
+    w.appendChild(b);
+  }
+  if(events.length){
+    w.appendChild(el('h3','sec','Publishes'));
+    w.appendChild(el('div','callout c-green',events.map(x=>'<code>'+x+'</code>').join(' &nbsp; ')));
+  }
+  const sb2=satisfiesBlock(REQ_BY_ENT[n],'Requirements it enforces');
+  if(sb2)w.appendChild(sb2);
+  w.appendChild(el('h3','sec','Persisted in'));
+  const b=el('div','blk'),rl=el('div','reflist');
+  tables.forEach(t=>{const btn=el('button',null,'<span class="mono">'+t+'</span><span class="why">'+(TBL_MOD[t]?'schema '+TBL_MOD[t]:'')+'</span>');
+    if(TBL_MOD[t])btn.onclick=()=>go('tbl-'+t);rl.appendChild(btn)});
+  b.appendChild(rl);w.appendChild(b);
+  return w;
+}
+
+
+/* ── L3 requirements: surfaces ── */
+const SF_ICON={'Platform':['blue','P'],'Admin':['purple','A'],'Customer':['green','C'],'Agent':['pink','G'],'Non-functional':['orange','N']};
+const SF_DESC={
+ 'Platform':'API shape, localisation, media, domain events and the contract other modules call.',
+ 'Admin':'Everything written in this module — categories, venues, seat maps, the event wizard, media and promotion.',
+ 'Customer':'What the web and mobile apps read — browse, home, detail, search and how it is delivered.',
+ 'Agent':'Read-only event search behind the Add Listing screen, and the boundaries around it.',
+ 'Non-functional':'How well it has to work — security, privacy, performance, scale, availability, observability.'};
+function viewReq(k){
+  const w=el('div','wrap');
+  const h=head('req-'+k);
+  const info=el('button','infobtn','<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/></svg> How to read these');
+  info.onclick=openHelp;
+  h.appendChild(info);
+  w.appendChild(h);
+  const g=el('div','grid2');
+  Object.keys(REQ_TREE[k]).forEach(sf=>{
+    const areas=REQ_TREE[k][sf];
+    const n=Object.values(areas).reduce((a,b)=>a+b.length,0);
+    const ic=SF_ICON[sf]||['gray','?'];
+    const b=el('button','card','<span class="go">Open &rarr;</span>'+
+      '<div class="kicker"><span class="tag t-'+ic[0]+'">'+sf+'</span><span class="tag t-gray">'+n+'</span></div>'+
+      '<p style="margin-top:0">'+(SF_DESC[sf]||'')+'</p>'+
+      '<div class="tbl-list">'+Object.keys(areas).map(a=>'<span>'+a+' · '+areas[a].length+'</span>').join('')+'</div>');
+    b.onclick=()=>go('reqs-'+k+'~'+slug(sf));
+    g.appendChild(b);
+  });
+  w.appendChild(g);
+  return w;
+}
+/* ── L4 surface: areas ── */
+function viewReqSurface(k,sfSlug){
+  const sf=SLUG[sfSlug],areas=REQ_TREE[k][sf];
+  const w=el('div','wrap');w.appendChild(head('reqs-'+k+'~'+sfSlug));
+  const g=el('div','grid2');
+  Object.keys(areas).forEach(ar=>{
+    const rs=areas[ar];
+    const traced=rs.filter(r=>TRACE[r[0]]).length;
+    const b=el('button','card','<span class="go">Open &rarr;</span>'+
+      '<div class="kicker"><span class="tag t-blue">'+ar+'</span><span class="tag t-gray">'+rs.length+'</span>'+
+      (traced?'<span class="tag t-green">'+traced+' traced</span>':'')+'</div>'+
+      '<div class="tbl-list">'+rs.slice(0,6).map(r=>'<span>'+r[0]+'</span>').join('')+
+      (rs.length>6?'<span>+'+(rs.length-6)+'</span>':'')+'</div>');
+    b.onclick=()=>go('reqa-'+k+'~'+sfSlug+'~'+slug(ar));
+    g.appendChild(b);
+  });
+  w.appendChild(g);
+  return w;
+}
+/* ── L5 area: the requirements ── */
+function viewReqArea(k,sfSlug,arSlug){
+  const sf=SLUG[sfSlug],ar=SLUG[arSlug],rs=REQ_TREE[k][sf][ar];
+  const w=el('div','wrap');w.appendChild(head('reqa-'+k+'~'+sfSlug+'~'+arSlug));
+  const card=el('div','tcard flag');
+  card.appendChild(el('header',null,'<b>'+ar+'</b><span class="cnt">'+rs.length+'</span>'));
+  rs.forEach(r=>{
+    const impl=TRACE[r[0]];
+    const row=el('button','reqrow','<span class="rid">'+r[0]+'</span><span class="rtx">'+r[1]+
+      (impl?'<em>'+[...(impl.t||[]),...(impl.e||[])].join(' · ')+'</em>':'')+'</span>');
+    row.onclick=()=>go('rq-'+r[0]);
+    card.appendChild(row);
+  });
+  w.appendChild(card);
+  return w;
+}
+/* ── L4 requirement ── */
+function viewReqDetail(id){
+  const r=REQ_BY_ID[id],mod=REQ_MOD[id];
+  const w=el('div','wrap narrow');
+  w.appendChild(el('div','ph','<span class="lvl">Level 4 · requirement · '+r[3]+' · '+r[4]+'</span>'+
+    '<h1 class="mono" style="font-size:22px">'+id+'</h1><p>'+r[1]+'</p>'));
+  if(r[2])w.appendChild(el('div','callout c-blue','<b>Acceptance</b><span class="sub">'+r[2]+'</span>'));
+  const impl=TRACE[id];
+  if(impl&&(impl.t||[]).length){
+    w.appendChild(el('h3','sec','Tables that carry it'));
+    const b=el('div','blk'),rl=el('div','reflist');
+    impl.t.forEach(t=>{const btn=el('button',null,'<span class="mono">'+t+'</span><span class="why">schema '+(TBL_MOD[t]||mod)+'</span>');
+      if(TBL_MOD[t])btn.onclick=()=>go('tbl-'+t);rl.appendChild(btn)});
+    b.appendChild(rl);w.appendChild(b);
+  }
+  if(impl&&(impl.e||[]).length){
+    w.appendChild(el('h3','sec','Types that enforce it'));
+    const b=el('div','blk'),rl=el('div','reflist');
+    impl.e.forEach(e=>{const btn=el('button',null,'<span class="mono">'+e+'</span><span class="why">'+
+      ((ENT[mod]||[]).find(x=>x[0]===e)||['','type'])[1]+'</span>');
+      if(ENT_MOD[e])btn.onclick=()=>go('ent-'+e);rl.appendChild(btn)});
+    b.appendChild(rl);w.appendChild(b);
+  }
+  if(!impl)w.appendChild(el('div','callout c-yellow','<b>No data footprint.</b><span class="sub">This is a behaviour, an API rule or an operational target rather than something a table or type carries.</span>'));
+  return w;
+}
+function satisfiesBlock(list,title){
+  if(!list||!list.length)return null;
+  const wrap=document.createDocumentFragment();
+  wrap.appendChild(el('h3','sec',title));
+  const b=el('div','blk'),rl=el('div','reflist');
+  [...new Set(list)].forEach(id=>{
+    const r=REQ_BY_ID[id];if(!r)return;
+    const btn=el('button',null,'<span class="mono">'+id+'</span><span class="why">'+r[1].slice(0,58)+'…</span>');
+    btn.onclick=()=>go('rq-'+id);rl.appendChild(btn);
+  });
+  b.appendChild(rl);wrap.appendChild(b);return wrap;
+}
+
+/* ── rail ── */
+function railRender(){
+  const rb=document.getElementById('rb');rb.innerHTML='';
+  rb.appendChild(el('div','grp','Map'));
+  const mp=el('button','item','<span class="chip t-gray">M</span>All modules<span class="no">L1</span>');
+  mp.dataset.v='map';mp.onclick=()=>go('map');rb.appendChild(mp);
+  LANES.forEach(L=>{
+    rb.appendChild(el('div','grp',L));
+    Object.keys(M).filter(k=>M[k].lane===L).forEach(k=>{
+      const on=M[k].status==='active';
+      const b=el('button','item sub'+(on?'':' dim'),'<span class="chip t-'+(on?'purple':'gray')+'">'+k[0]+'</span>'+k+
+        '<span class="no">'+M[k].tables+'</span>');
+      b.dataset.v='mod-'+k;if(on)b.onclick=()=>go('mod-'+k);
+      rb.appendChild(b);
+    });
+  });
+}
+/* ── history ── */
+let stack=[],idx=-1;
+function render(key){
+  cur=key;stage.innerHTML='';
+  if(key==='map')stage.appendChild(viewMap());
+  else if(key.indexOf('mod-')===0)stage.appendChild(viewModule(key.slice(4)));
+  else if(key.indexOf('erd-')===0)stage.appendChild(viewErd(key.slice(4)));
+  else if(key.indexOf('dom-')===0)stage.appendChild(viewDomain(key.slice(4)));
+  else if(key.indexOf('reqa-')===0){const q=key.slice(5).split('~');stage.appendChild(viewReqArea(q[0],q[1],q[2]));}
+  else if(key.indexOf('reqs-')===0){const q=key.slice(5).split('~');stage.appendChild(viewReqSurface(q[0],q[1]));}
+  else if(key.indexOf('req-')===0)stage.appendChild(viewReq(key.slice(4)));
+  else if(key.indexOf('rq-')===0)stage.appendChild(viewReqDetail(key.slice(3)));
+  else if(key.indexOf('tbl-')===0)stage.appendChild(viewTable(key.slice(4)));
+  else if(key.indexOf('ent-')===0)stage.appendChild(viewEntity(key.slice(4)));
+  let sel=key;
+  if(key.indexOf('erd-')===0||key.indexOf('dom-')===0||key.indexOf('req-')===0)sel='mod-'+key.slice(4);
+  if(key.indexOf('rq-')===0)sel='mod-'+REQ_MOD[key.slice(3)];
+  if(key.indexOf('reqs-')===0||key.indexOf('reqa-')===0)sel='mod-'+key.slice(5).split('~')[0];
+  if(key.indexOf('tbl-')===0)sel='mod-'+TBL_MOD[key.slice(4)];
+  if(key.indexOf('ent-')===0)sel='mod-'+ENT_MOD[key.slice(4)];
+  document.querySelectorAll('.item').forEach(i=>i.setAttribute('aria-current',i.dataset.v===sel?'true':'false'));
+  document.getElementById('rail').classList.remove('open');
+  scroll.scrollTop=0;crumbs();syncNav();
+  requestAnimationFrame(applyHighlight);
+}
+function syncNav(){
+  document.getElementById('back').disabled=idx<=0;
+  document.getElementById('fwd').disabled=idx>=stack.length-1;
+  document.getElementById('up').disabled=!PARENT[cur];
+}
+function go(key,initial){
+  if(!(key in META))key='map';
+  if(!initial&&stack[idx]===key)return;
+  if(initial){stack=[key];idx=0;history.replaceState({i:0},'','#'+key)}
+  else{stack=stack.slice(0,idx+1);stack.push(key);idx=stack.length-1;history.pushState({i:idx},'','#'+key)}
+  render(key);
+}
+addEventListener('popstate',e=>{const i=e.state&&typeof e.state.i==='number'?e.state.i:0;
+  if(stack[i]){idx=i;render(stack[i])}else go((location.hash||'').slice(1)||'map',true)});
+function crumbs(){
+  const c=document.getElementById('crumbs');c.innerHTML='';
+  const chain=[];let k=cur;while(k){chain.unshift(k);k=PARENT[k]}
+  chain.forEach((kk,i)=>{
+    const t=META[kk][0].split('—')[0].trim();
+    if(i<chain.length-1){const b=el('button',null,t);b.onclick=()=>go(kk);c.appendChild(b);c.appendChild(el('i',null,'/'))}
+    else c.appendChild(el('b',null,t));
+  });
+}
+document.getElementById('back').onclick=()=>history.back();
+document.getElementById('fwd').onclick=()=>history.forward();
+document.getElementById('up').onclick=()=>{if(PARENT[cur])go(PARENT[cur])};
+document.getElementById('burger').onclick=()=>document.getElementById('rail').classList.toggle('open');
+addEventListener('resize',()=>{if(cur==='map')drawWires()});
+addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPal();return}
+  if(e.target.closest('input,textarea'))return;
+  if(e.key==='/'){e.preventDefault();openPal();return}
+  if(e.key==='Escape'&&help.classList.contains('on')){closeHelp();return}
+  if(e.key==='Escape'&&pal.classList.contains('on')){closePal();return}
+  if(e.key==='Escape'&&PARENT[cur]){go(PARENT[cur]);return}
+  if(e.key==='['||(e.altKey&&e.key==='ArrowLeft')){e.preventDefault();history.back();return}
+  if(e.key===']'||(e.altKey&&e.key==='ArrowRight')){e.preventDefault();history.forward()}
+});
+const SUN='<circle cx="12" cy="12" r="4"/><path d="M12 3V1M12 23v-2M3 12H1M23 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4"/>';
+const MOON='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+function setTheme(t){document.documentElement.dataset.theme=t;document.getElementById('ticon').innerHTML=t==='dark'?SUN:MOON;
+  try{localStorage.setItem('zk-theme',t)}catch(e){}
+  if(cur==='map')requestAnimationFrame(drawWires)}
+let t0='light';try{t0=localStorage.getItem('zk-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}
+setTheme(t0);
+document.getElementById('theme').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+railRender();
+go((location.hash||'').slice(1)||'map',true);
+</script>
+</body>
+</html>
