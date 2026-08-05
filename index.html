@@ -174,6 +174,8 @@ button.node:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(35,131,226,.45)
 .legend{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 18px;font-size:13px;color:var(--soft)}
 .legend span b{color:var(--ink)}
 .mtxnote{background:var(--orange-bg);color:var(--orange);border-radius:10px;padding:12px 16px;font-size:14px;margin:0 0 18px}
+.mtxnote.hole{background:var(--red-bg);color:var(--red)}
+.mtx td.miss{color:var(--red);font-weight:600}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
 .blk{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
 .blk h5{margin:0 0 12px;font-size:15px;font-weight:600;letter-spacing:-.01em}
@@ -351,6 +353,55 @@ code{font-family:var(--font-mono);font-size:.86em;background:var(--hover);paddin
     </div>
   </div>
 </div>
+<div class="pal" id="mhelp">
+  <div class="palbox helpbox">
+    <div class="palin"><b style="font-size:16px;font-weight:600;flex:1">How to read the access matrix.</b><button class="ib" id="mhelpx" aria-label="Close">&times;</button></div>
+    <div class="helpbody">
+      <p class="hlead">Three tables stacked top to bottom. Only the first is real data — the other two are calculated from it. Nothing on this page is typed by hand.</p>
+
+      <h4>1 &middot; The Final Role Matrix</h4>
+      <p class="hsmall">Nine roles down the side, ten <b>areas</b> of the system across the top. Each cell is a letter saying <i>how much</i> that role may do in that area. This is the only table copied from the client's roles document, and it is what <code>role_permissions</code> is seeded from.</p>
+      <table class="htab"><tbody>
+        <tr><td><b class="sc sc-F">F</b></td><td>full control &mdash; every code in the area</td></tr>
+        <tr><td><b class="sc sc-M">M</b></td><td>manage &mdash; read plus write</td></tr>
+        <tr><td><b class="sc sc-V">V</b></td><td>view &mdash; the read codes only</td></tr>
+        <tr><td><b class="sc sc-A">A</b></td><td>approve &mdash; read plus the approve code</td></tr>
+        <tr><td><b class="sc sc-R">R</b></td><td>request or escalate &mdash; the request code alone, without approve</td></tr>
+        <tr><td><b class="sc sc-O">O</b></td><td>own or assigned cases only &mdash; read plus write, unscoped in V1</td></tr>
+        <tr><td><b class="sc sc-N">N</b></td><td>no access</td></tr>
+      </tbody></table>
+
+      <h4>3 &middot; How a score becomes permission codes</h4>
+      <p class="hsmall">Read this one before table 2 &mdash; it is the translation key. For each area it lists which permission codes count as <i>read</i>, <i>write</i>, <i>approve</i> and <i>request</i>. A letter in table 1 selects one or more of these columns.</p>
+
+      <h4>2 &middot; Derived permission grid</h4>
+      <p class="hsmall">Thirty permission codes down the side, the nine roles across the top. Every tick is computed from a letter in table 1 plus the mapping in table 3. A dash means the role does not hold that code.</p>
+
+      <h4>Working out one role, step by step</h4>
+      <table class="htab"><tbody>
+        <tr><td><b>1</b></td><td>In <b>table 1</b>, find the role's row and read the letter under the area you care about. Operations Manager, Events &rarr; <b class="sc sc-M">M</b></td></tr>
+        <tr><td><b>2</b></td><td>Look the letter up above. <b class="sc sc-M">M</b> means read plus write.</td></tr>
+        <tr><td><b>3</b></td><td>In <b>table 3</b>, find that area. Events &mdash; read is <code>event.view</code>, write is <code>event.create</code>, <code>event.update</code>, <code>inventory.manage</code>.</td></tr>
+        <tr><td><b>4</b></td><td>Those four codes are the role's permissions for that area. <b>Table 2</b> shows the same answer as ticks.</td></tr>
+        <tr><td><b>5</b></td><td>Repeat for the other nine areas and take the union. Add <code>dashboard.view</code>, which every role holds.</td></tr>
+      </tbody></table>
+      <p class="hsmall">That union is the whole permission set for the role. A sensitive code additionally needs an approved grant to hold and recent MFA to use &mdash; the red <b>sensitive</b> tag in table 2 marks which.</p>
+
+      <h4>Reading it the other way &mdash; where does a screen get its permission?</h4>
+      <p class="hsmall">Start from the area a screen belongs to, then table 3 gives its codes. The <b>Where the supply modules take their permissions</b> section at the bottom does this for every supply surface, and shows which ones land nowhere.</p>
+
+      <h4>What the two coloured boxes mean</h4>
+      <table class="htab"><tbody>
+        <tr><td><b>Orange</b></td><td>A permission code exists but the matrix gives it to nobody &mdash; a missing <i>column</i> in table 1.</td></tr>
+        <tr><td><b>Red</b></td><td>No permission code exists at all &mdash; a missing <i>area</i>. Nothing renders, so the gap is invisible unless flagged.</td></tr>
+      </tbody></table>
+
+      <h4>Two things this page does not tell you</h4>
+      <p class="hsmall"><b>Scope.</b> <code>O</code> and <code>M</code> grant identical codes in V1, because row-level scoping is deferred. Support Agent is indistinguishable from Support Lead on Orders and Support.</p>
+      <p class="hsmall"><b>Step-up.</b> Holding a sensitive code is not the same as being able to use it. Approval gates the grant; MFA inside a 10-minute window gates each use.</p>
+    </div>
+  </div>
+</div>
 <div class="pal" id="pal">
   <div class="palbox">
     <div class="palin">
@@ -374,9 +425,9 @@ const M={
  catalog:{lane:'Foundation',color:'purple',status:'active',tables:17,
    what:'Events, the taxonomy, venues, seat layout and what is on sale.',
    sub:'What exists. Read by everything, written by almost nothing.'},
- supply:{lane:'Foundation',color:'gray',status:'planned',tables:2,
+ suppliers:{lane:'Foundation',color:'green',status:'active',tables:1,
    what:'The SAP vendor registry. Who we buy our own stock from.',
-   sub:'Not a registry of sources. Tixstock is an integration, an agent is an identity.'},
+   sub:'A party with a cardCode and a cost. Never deleted — status is the whole lifecycle.'},
  supply_moonline:{lane:'Supply',color:'gray',status:'planned',tables:3,
    what:'Stock we bought. The only source the database can count.',
    sub:'Ticket stock only. Six states, per-category supplier allocation, a movements ledger.'},
@@ -412,9 +463,10 @@ const LANES=['Foundation','Supply','Selling','Downstream'];
 const LINKS=[
  ['catalog','identity','translated_by'],
  ['access','identity','who is acting'],
- ['supply_moonline','catalog','event_id'],['supply_moonline','supply','supplier_id'],
- ['supply_tixstock','catalog','event_id'],['supply_tixstock','supply','supplier_id'],
+ ['supply_moonline','catalog','event_id'],['supply_moonline','suppliers','supplier_id'],
+ ['supply_tixstock','catalog','event_id'],
  ['supply_agent','catalog','event_id'],
+ ['packages','suppliers','supplier_id'],['sap','suppliers','cardCode'],
  ['availability','supply_moonline','projects'],['availability','supply_tixstock','projects'],
  ['availability','supply_agent','projects'],
  ['availability','catalog','event_id'],
@@ -423,7 +475,7 @@ const LINKS=[
  ['ordering','access','refund approval'],
  ['invoicing','ordering','on paid'],
  ['settlement','ordering','on sale'],['settlement','supply_agent','agent payable'],
- ['settlement','supply_tixstock','broker payable'],['settlement','supply','vendor invoices'],['packages','catalog','composes'],['packages','pricing','prices'],
+ ['settlement','supply_tixstock','broker payable'],['settlement','suppliers','vendor invoices'],['packages','catalog','composes'],['packages','pricing','prices'],
  ['notifications','ordering','listens'],['notifications','catalog','listens'],
  ['sap','ordering','frozen records'],['reporting','sap','aggregates']
 ];
@@ -707,6 +759,18 @@ const TABLES={identity:[
   ['ip_address · user_agent · request_id',''],
   ['created_at','append-only — no updated_at']],
   {t:'chk',s:'Moved in from Domain 12. The API database role holds INSERT and SELECT and nothing else — append-only is enforced below the application, not only inside it.'}]
+],suppliers:[
+ ['suppliers','changed',[['id','uuid pk'],
+  ['sap_card_code','NOT NULL · unique on upper() · admin-entered · immutable after creation','warn'],
+  ['first_name · last_name','both required, non-blank','new'],
+  ['company_name','optional — Sara Ali — SUP-002 has none','new'],
+  ['phone','optional · E.164','new'],
+  ['email','optional · syntactically validated','new'],
+  ['image_url','optional · https only · the middle link of the catalog image chain. No upload control exists','new'],
+  ['status','Active · Inactive — the entire lifecycle. There is no delete','warn'],
+  ['created_by · updated_by','uuid, no fk → identity.admin_identities','new'],
+  ['created_at · updated_at','set_updated_at() trigger']],
+  {t:'chk',s:'13 columns. Dropped from the supplied schema: code, name, type, is_active, configuration_json — those four model a registry of sources, which is a different concept wearing the same name. display_name is derived on read as first last[ · company] — cardCode and is stored nowhere. No currency column: Step 3 collects it per allocation. The only table on the platform with no foreign key in either direction.'}]
 ]};
 const REFBY={
  customer_registration_attempts:['otp_challenges'],
@@ -723,7 +787,8 @@ const REFBY={
  ticket_categories:['ticket_category_translations'],
  roles:['role_permissions','admin_user_roles','approval_steps'],
  permissions:['role_permissions','admin_sensitive_grants'],
- approval_requests:['approval_steps','admin_sensitive_grants','audit_logs']
+ approval_requests:['approval_steps','admin_sensitive_grants','audit_logs'],
+ suppliers:['inventory_allocations','package_flights','package_hotels','package_hospitality_tickets','package_addons','sap_report_items']
 };
 
 /* ════════ identity + catalog — domain entities ════════ */
@@ -1219,6 +1284,54 @@ const ENT={identity:[
   ['Seeded by migration — no runtime path invents authority',
    'A code is deprecated, never renamed or reused — audit rows reference it for 24 months',
    'A new code defaults to granted to no role'],
+  []]
+],suppliers:[
+ ['Supplier','Aggregate root','green',['suppliers'],
+  [['SupplierId Id',''],
+   ['SapCardCode CardCode','the business key · unique on upper() · set once at creation'],
+   ['SupplierName Name','first, last and an optional company'],
+   ['ContactDetails Contact','optional phone and email'],
+   ['ImageUrl? Image','https only · the middle link of the catalog image chain'],
+   ['SupplierStatus Status','Active · Inactive'],
+   ['AdminId CreatedBy · AdminId? UpdatedBy','uuid, no fk — resolved through identity'],
+   ['string DisplayName','derived · first last[ · company] — cardCode · persisted nowhere']],
+  [['Create(cardCode, name, contact, status, actor, now)','the only construction path'],
+   ['UpdateProfile(name, contact, actor, now)','first, last, company, phone, email — never the cardCode'],
+   ['SetImage(url, actor, now)','no screen writes this yet'],
+   ['Deactivate(actor, now)','removes it from the picker and changes nothing else'],
+   ['Reactivate(actor, now)','restores selectability and nothing else'],
+   ['IsSelectable','derived — true when Active']],
+  ['sap_card_code is unique across the registry, compared without case — S30012 and s30012 are one vendor',
+   'sap_card_code is immutable after creation — SAP joins on it and sale snapshots carry it',
+   'A supplier is never deleted. There is no command, no endpoint and no DELETE grant on the table',
+   'Only an Active supplier may be attached to a new allocation — checked at the command boundary, not by hiding a dropdown option',
+   'Deactivation changes no allocation, hold, order, snapshot or export',
+   'An Inactive supplier still resolves through GetSupplier and GetSuppliersByIds',
+   'display_name is always derived and never stored',
+   'Every create, edit and status change writes an audit row through access.WriteAudit before the transaction commits',
+   'No consumer reads supplier data at report time — financial records carry their own snapshot'],
+  ['SupplierCreated','SupplierProfileUpdated','SupplierImageChanged','SupplierDeactivated','SupplierReactivated']],
+ ['SapCardCode','Value object','green',['suppliers'],
+  [['string Value','trimmed · 1 to 32 characters']],
+  [['From(raw)','trims and rejects blank or over-length'],
+   ['Equals(other)','case-insensitive'],
+   ['ToString()','the stored casing, not the normalised one']],
+  ['Format is not validated beyond non-empty and length — SUP-001 and S30012 are both live shapes',
+   'Compared case-insensitively so the unique index and the domain agree'],
+  []],
+ ['SupplierName','Value object','green',['suppliers'],
+  [['string First · string Last','both required, non-blank'],
+   ['string? Company','optional · non-blank where present'],
+   ['string Display(cardCode)','first last[ · company] — cardCode']],
+  [['Display(cardCode)','the one composition rule on the platform — three surfaces render it, none recomposes it']],
+  ['Never persisted as a single string — a stored display name drifts the first time a surname is corrected',
+   'A missing company collapses the separator rather than leaving an empty one'],
+  []],
+ ['ContactDetails','Value object','green',['suppliers'],
+  [['PhoneNumber? Phone','E.164 where present'],['EmailAddress? Email','syntactically valid where present']],
+  [['None','both null — the form marks neither mandatory']],
+  ['Business contact details for a named individual — treated as personal data',
+   'Never reaches the SAP export, an invoice, or any customer or agent response'],
   []]
 ]};
 
@@ -1900,6 +2013,162 @@ const REQS={identity:[
  ["NFR-MAINT-209", "A test SHALL assert that the seeded role_permissions matches the Final Role Matrix cell for cell.", "The matrix is the specification; the test is its enforcement.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-210", "Migrations SHALL run clean from an empty database, and seed data SHALL be repeatable.", "Fresh environment in one command.", "Non-functional", "Maintainability"],
  ["NFR-MAINT-211", "CI SHALL run build, tests and migration verification on every push.", "The role-matrix and escalation tests are the ones that must never be skipped.", "Non-functional", "Maintainability"],
+],suppliers:[
+ ["FR-PLAT-SUP-301", "The platform SHALL hold a registry of suppliers, where a supplier is a party from which Zikzaak buys its own stock, identified by an SAP cardCode.", "The SAP specification: *\"The SAP cardCode for each supplier is set by the administrator when creating the supplier account in the Events System dashboard.\"*", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-302", "A supplier SHALL carry an SAP cardCode, a first name, a last name, an optional company name, an optional phone, an optional email, an optional image and a status.", "The create form's seven fields plus the image added by FR-PLAT-IMG-301.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-303", "sap_card_code SHALL be entered by an administrator at creation. The platform SHALL NOT generate it.", "Confirmed 5 Aug 2026. There is no pending state waiting on SAP.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-304", "sap_card_code SHALL be unique across the registry, compared case-insensitively.", "Enforced by a unique index on upper(sap_card_code). SAP treats S30012 and s30012 as one vendor; two rows here would split a cost centre.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-305", "sap_card_code SHALL be immutable after creation. Any request to change it SHALL be refused.", "SAP joins on it and every sale snapshot carries it. A rewrite orphans historical records.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-306", "First name and last name SHALL be mandatory and non-blank. Company name SHALL be optional and, where present, non-blank.", "Sara Ali — SUP-002 has no company; Ahmed Hassan · TicketCo — SUP-001 does.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-307", "The platform SHALL derive a supplier's display name as first last, then  · company where a company is present, then  — cardCode. It SHALL NOT store the derived value.", "*\"Display name is generated automatically from the supplier profile.\"* Storing it would create a second source of truth that drifts the first time a surname is corrected.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-308", "Phone SHALL be stored in E.164 form where present. Email SHALL be syntactically valid where present. Neither SHALL be required.", "Two of the three sample rows carry both; the form marks neither mandatory.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-309", "A supplier SHALL NOT carry a currency.", "Currency is collected per allocation in the event wizard's Step 3 and rendered per row on the Owned Inventory list. TravelDesk supplies in USD twice; TicketCo in IQD.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-310", "A supplier SHALL NOT carry a type discriminator or an integration configuration.", "The supplied schema's type ENUM('api','manual','agent') and configuration_json model a registry of *sources*. Tixstock's credentials are deployment configuration and an agent is an identity with a business record in supply_agent.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-311", "The registry SHALL be seeded empty. No supplier SHALL ship in a migration.", "Unlike the taxonomy, suppliers are operational data an operations team maintains.", "Platform", "The supplier record"],
+ ["FR-PLAT-SUP-312", "Every supplier SHALL record the administrator who created it and the administrator who last updated it.", "Stored as unconstrained UUIDs. The lifecycle audit panel renders the admin's email from access.", "Platform", "The supplier record"],
+ ["FR-PLAT-STA-301", "A supplier's status SHALL be exactly one of active or inactive.", "The list's three counters — total, active, inactive — admit no third value.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-302", "A newly created supplier SHALL default to active.", "The create form's Status control defaults to Active.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-303", "A supplier SHALL NOT be deleted by any path. The platform SHALL expose no delete command, no delete endpoint and no soft-delete column.", "Confirmed 5 Aug 2026. Every sale snapshot naming a supplier must stay resolvable for the life of the SAP export.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-304", "Deactivation SHALL be reversible, and reactivation SHALL restore selectability and nothing else.", "One column, two directions.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-305", "Only an active supplier SHALL be attachable to a new inventory allocation.", "Enforced by IsSelectable at the command boundary in supply_moonline and packages, not by hiding the option in a dropdown.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-306", "Deactivating a supplier SHALL change no allocation, no hold, no order, no sale snapshot and no export.", "The same rule catalog applies to a retired taxonomy option: unselectable for new, still readable on old.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-307", "An inactive supplier SHALL continue to resolve through GetSupplier and GetSuppliersByIds.", "Otherwise every historical Owned Inventory row and cost-centre line would render blank.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-308", "A supplier that has never been referenced SHALL be deactivated by the same path as one that has. The platform SHALL NOT expose a conditional delete for unreferenced records.", "No \"safe delete\" branch. One lifecycle, no special cases.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-STA-309", "Creating, updating and changing the status of a supplier SHALL each write an audit row through access.WriteAudit, carrying the before and after state, within the same transaction.", "Feeds the Supplier Lifecycle Audit panel's OLD VALUE and NEW VALUE columns.", "Platform", "Status and lifecycle"],
+ ["FR-PLAT-IMG-301", "A supplier MAY carry one image, stored as an HTTPS URL.", "Built because catalog resolved its image fallback chain to *event custom → supplier → global placeholder* and the middle link must exist.", "Platform", "The supplier image"],
+ ["FR-PLAT-IMG-302", "catalog SHALL resolve a missing event image to the supplier image, and a missing supplier image to the global placeholder.", "The chain shortened when the category default-visuals tab was removed. Suppliers are the only remaining intermediate step.", "Platform", "The supplier image"],
+ ["FR-PLAT-IMG-303", "A null image_url SHALL fall through the chain cleanly and SHALL NOT be an error.", "Until an upload control ships, every supplier image is null and every event falls through to the placeholder.", "Platform", "The supplier image"],
+ ["FR-PLAT-IMG-304", "Where an upload control is added, it SHALL accept JPG, PNG or WebP up to 5 MB and SHALL store only the resulting URL.", "Same media policy catalog applies to event imagery, scaled down for a logo. No control exists today — recorded as a design gap, not designed around.", "Platform", "The supplier image"],
+ ["FR-PLAT-INT-301", "The module SHALL expose GetSupplier, GetSuppliersByIds, GetSelectableSuppliers, IsSelectable, GetSupplierSnapshot and GetSupplierImage, and SHALL expose no other operation to another module.", "Six reads, no writes. Nothing outside this module changes a supplier.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-302", "GetSupplierSnapshot SHALL return the cardCode and the composed name only.", "Deliberately narrower than GetSupplier, so nothing accidentally copies a phone number into a financial record.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-303", "A consuming module SHALL capture the supplier cardCode and name at the moment an allocation is created and again at the moment of sale, and SHALL read those captured values thereafter.", "Four of the thirteen fields the event wizard locks on sale are supplier fields: *Supplier · Supplier SAP code · Supplier base price · Supplier currency*.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-304", "No report, export or invoice SHALL resolve supplier data live at read time.", "Editing a supplier must not change what a two-year-old export says.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-305", "The SAP reservation export's supplier object SHALL take cardCode from sap_card_code and SHALL compose name from first name, last name and company.", "The SAP supplier object also carries currency, exchangeRate, totalAmount and priceBreakdown — all of which come from the transaction, not from this module.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-306", "The module SHALL publish SupplierCreated, SupplierProfileUpdated, SupplierImageChanged, SupplierDeactivated and SupplierReactivated through the outbox.", "All five reach access for the audit log.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-307", "SupplierDeactivated SHALL be consumed by supply_moonline and packages to drop the supplier from their picker caches.", "The only event with a functional consumer.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-308", "No domain event from this module SHALL cause a repricing, a reallocation or any change to an existing inventory record.", "A vendor's phone number changing must not touch stock.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-309", "The module SHALL hold no foreign key leaving its schema, and no other schema SHALL hold a foreign key into it.", "created_by and updated_by are unconstrained UUIDs resolved through identity. Consumers hold plain supplier_id UUIDs.", "Platform", "Contract and integration"],
+ ["FR-PLAT-INT-310", "The module SHALL own no audit table.", "The Supplier Lifecycle Audit panel is access.audit_logs filtered to this module.", "Platform", "Contract and integration"],
+ ["FR-PLAT-API-301", "Supplier endpoints SHALL exist under the /admin route group only.", "No /public and no /agent supplier route exists.", "Platform", "API shape"],
+ ["FR-PLAT-API-302", "The list endpoint SHALL support filtering by status and free-text search across name, company and cardCode, SHALL be paginated, and SHALL default to ordering by last name then first name.", "The list's three counters and its status filter.", "Platform", "API shape"],
+ ["FR-PLAT-API-303", "A create request whose cardCode already exists SHALL be refused with a field-level conflict naming sapCardCode, and SHALL NOT reveal the existing supplier.", "A 409 with a machine-readable field, not a 500 from the unique index.", "Platform", "API shape"],
+ ["FR-PLAT-API-304", "An update request containing sapCardCode SHALL be refused, whether or not the value differs from the stored one.", "Refusing only on difference invites a client to send it every time and depend on the behaviour.", "Platform", "API shape"],
+ ["FR-PLAT-API-305", "Write endpoints SHALL reject unexpected fields rather than ignoring them.", "No mass assignment into status through the profile endpoint.", "Platform", "API shape"],
+ ["FR-PLAT-API-306", "Status change SHALL be its own endpoint, distinct from the profile update.", "Deactivation is an audited lifecycle event; correcting a phone number is not.", "Platform", "API shape"],
+ ["FR-PLAT-API-307", "Responses SHALL include the derived display name alongside its parts, so no client recomposes it.", "One composition rule, implemented once.", "Platform", "API shape"],
+ ["FR-PLAT-API-308", "Concurrent edits SHALL resolve last-write-wins, and the module SHALL NOT implement optimistic concurrency.", "A registry of tens of rows edited by an operations team. catalog's row_version exists because a five-step wizard can be open in two tabs; this form cannot.", "Platform", "API shape"],
+ ["FR-ADM-SEC-301", "Creating, updating and changing the status of a supplier SHALL require inventory.manage.", "The roles document names no supplier-specific permission code, and this module does not add one. Operations Manager and Super Admin hold it.", "Admin", "Permissions"],
+ ["FR-ADM-SEC-302", "Reading the supplier list and a supplier record SHALL require event.view.", "Every role but Support Agent holds it, which matches the Owned Inventory and Alerts screens where the supplier column appears.", "Admin", "Permissions"],
+ ["FR-ADM-SEC-303", "Reading the Supplier Lifecycle Audit panel SHALL require audit.view.", "It is the audit log with a filter, so it inherits the audit log's permission and its step-up requirement.", "Admin", "Permissions"],
+ ["FR-ADM-SEC-304", "No supplier action SHALL be a sensitive action.", "None appears in the roles document's sensitive-permissions table, and deactivating a vendor is reversible and changes no money.", "Admin", "Permissions"],
+ ["FR-ADM-LST-301", "The list SHALL show, per supplier: display name, SAP code, company, phone, email and status.", "The six columns rendered today.", "Admin", "The Suppliers list"],
+ ["FR-ADM-LST-302", "The list SHALL show counters for total, active and inactive suppliers.", "Total suppliers 3 · Active 2 · Inactive 1.", "Admin", "The Suppliers list"],
+ ["FR-ADM-LST-303", "The list SHALL offer a status filter and a free-text search across name, company and SAP code.", "Search is what makes the picker usable once the registry passes a screenful.", "Admin", "The Suppliers list"],
+ ["FR-ADM-LST-304", "An inactive supplier SHALL remain listed and SHALL be visually distinguished from an active one.", "Omar Kareem · EventSource — SUP-003 renders Inactive, not hidden.", "Admin", "The Suppliers list"],
+ ["FR-ADM-LST-305", "Each row SHALL expose a Manage action leading to the edit surface.", "The only row action present.", "Admin", "The Suppliers list"],
+ ["FR-ADM-LST-306", "The list SHALL NOT offer a delete action.", "There is no delete. A control that always fails is worse than no control.", "Admin", "The Suppliers list"],
+ ["FR-ADM-LST-307", "Where a company is absent, the row SHALL render first last — cardCode with no empty separator, and the company column SHALL show a dash.", "Sara Ali — SUP-002, company -.", "Admin", "The Suppliers list"],
+ ["FR-ADM-CRE-301", "The create form SHALL collect Supplier SAP Code, First name, Last name, Company, Status, Phone and Email.", "The seven fields present. An image field is not present — see FR-PLAT-IMG-304.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-302", "Supplier SAP Code, First name and Last name SHALL be mandatory. All other fields SHALL be optional.", "The three asterisked fields.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-303", "The form SHALL render a live preview of the derived display name as the administrator types.", "The DROPDOWN LABEL PREVIEW panel showing First Last — SUP-000.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-304", "The form SHALL NOT collect a display name, a supplier reference, a type or a currency.", "All four are either derived, duplicated or owned elsewhere.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-305", "Submitting a cardCode already held by another supplier SHALL be refused with a field-level error on the cardCode, in place, without losing the rest of the form.", "Case-insensitive collision. The administrator should not lose six fields to a typo in one.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-306", "The Status control SHALL default to Active and MAY be set to Inactive at creation.", "A vendor can be registered before it is ready to supply.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-307", "Creation SHALL be reachable both from the Suppliers screen and inline from the event wizard's Step 3.", "Step 3 offers Add new supplier beside Add supplier.", "Admin", "Creating a supplier"],
+ ["FR-ADM-CRE-308", "Inline creation from Step 3 SHALL return the new supplier already selected in the allocation row that opened it.", "Otherwise the administrator loses their place in a five-step wizard.", "Admin", "Creating a supplier"],
+ ["FR-ADM-EDT-301", "The Manage surface SHALL allow first name, last name, company, phone, email and image to be changed.", "The six mutable fields.", "Admin", "Editing a supplier"],
+ ["FR-ADM-EDT-302", "The Manage surface SHALL render the SAP code as read-only and SHALL offer no path to change it.", "Immutable by FR-PLAT-SUP-305. Rendering it as an editable field that the API refuses is a worse design than rendering the truth.", "Admin", "Editing a supplier"],
+ ["FR-ADM-EDT-303", "The Manage surface SHALL offer Deactivate on an active supplier and Reactivate on an inactive one.", "One control, two labels.", "Admin", "Editing a supplier"],
+ ["FR-ADM-EDT-304", "Deactivation SHALL warn that the supplier will no longer be selectable for new inventory, and SHALL state that existing inventory is unaffected.", "The one thing an operations manager needs to know before clicking, and the one thing the screen does not say today.", "Admin", "Editing a supplier"],
+ ["FR-ADM-EDT-305", "The Manage surface SHOULD show how many active allocations reference the supplier.", "Informational. It does not block deactivation — FR-PLAT-STA-308.", "Admin", "Editing a supplier"],
+ ["FR-ADM-EDT-306", "The Manage surface SHALL NOT offer Delete.", "Consistent with FR-ADM-LST-306.", "Admin", "Editing a supplier"],
+ ["FR-ADM-PIC-301", "The event wizard's Step 3 SHALL offer a supplier picker per allocation row, listing active suppliers only, labelled with the derived display name.", "*\"Supplier 1\\* — Select supplier\"*, repeatable within a ticket category.", "Admin", "The Step 3 supplier picker"],
+ ["FR-ADM-PIC-302", "Selecting a supplier SHALL populate the allocation's SAP code field from the supplier record, read-only.", "The screen shows SAP code — until a supplier is chosen. The administrator never types it twice.", "Admin", "The Step 3 supplier picker"],
+ ["FR-ADM-PIC-303", "The API SHALL refuse an allocation naming an inactive or unknown supplier, independently of what the picker offered.", "Hiding the option is UX; refusing the write is the control.", "Admin", "The Step 3 supplier picker"],
+ ["FR-ADM-PIC-304", "An allocation created against a supplier that is later deactivated SHALL continue to render that supplier's name and code.", "GetSuppliersByIds resolves inactive suppliers — FR-PLAT-STA-307.", "Admin", "The Step 3 supplier picker"],
+ ["FR-ADM-PIC-305", "The picker SHALL NOT expose phone, email or image.", "Internal-only data, narrowed further: the picker needs a label and a code.", "Admin", "The Step 3 supplier picker"],
+ ["FR-ADM-AUD-301", "The panel SHALL render action, supplier, SAP code, admin user, timestamp, old value and new value, sourced from access.audit_logs.", "The seven columns present, column for column.", "Admin", "The Supplier Lifecycle Audit panel"],
+ ["FR-ADM-AUD-302", "The panel SHALL cover created, edited, deactivated and reactivated. It SHALL NOT advertise a deleted action.", "The panel's header currently reads *\"Created, edited, deactivated, reactivated, and deleted supplier actions.\"* Delete cannot occur, so a supplier-deleted row is unreachable. Raised as a design defect.", "Admin", "The Supplier Lifecycle Audit panel"],
+ ["FR-ADM-AUD-303", "Audit rows for this module SHALL carry module = 'Suppliers' and a target naming the supplier's cardCode.", "So the panel is one filter, and so an audit row stays readable after a surname change.", "Admin", "The Supplier Lifecycle Audit panel"],
+ ["FR-ADM-AUD-304", "Old and new values SHALL be field-limited to what changed.", "NFR-PRIV-302. A whole-record dump into an audit row is a retention problem.", "Admin", "The Supplier Lifecycle Audit panel"],
+ ["FR-ADM-AUD-305", "The panel SHALL be filterable by supplier and by date range.", "The two filters the audit specification requires of every audit surface.", "Admin", "The Supplier Lifecycle Audit panel"],
+ ["FR-PUB-SUP-301", "No /public route SHALL exist for suppliers.", "Not a hidden route, not an authenticated one. There is no supplier endpoint outside /admin.", "Customer", "What a customer never sees"],
+ ["FR-PUB-SUP-302", "No customer-facing response SHALL contain a supplier id, SAP cardCode, supplier name, company, phone or email.", "The prohibition is on the payload, not on the screen. A field absent from the design but present in the JSON is the same leak.", "Customer", "What a customer never sees"],
+ ["FR-PUB-SUP-303", "No customer-facing response SHALL contain a supplier base price, base currency, cost, margin or profit figure.", "The customer sees one price per ticket category, in IQD, with the 3% processing fee shown separately. Nothing behind it.", "Customer", "What a customer never sees"],
+ ["FR-PUB-SUP-304", "Where a ticket category is supplied by more than one supplier, the customer SHALL see one merged row and SHALL NOT be able to infer the number of suppliers behind it.", "The Availability Monitor holds one row per source; the customer event page shows one row per category. The split is internal.", "Customer", "What a customer never sees"],
+ ["FR-PUB-SUP-305", "A contract test SHALL assert that no supplier field appears in any /public response schema.", "An assertion in CI, not a review convention. The field names are stable enough to test against.", "Customer", "What a customer never sees"],
+ ["FR-PUB-IMG-301", "Where an event has no image of its own, the customer surface SHALL render the supplier image, and where there is none, the global placeholder.", "The catalog chain: *event custom → supplier → global placeholder*.", "Customer", "The one thing that does reach a customer"],
+ ["FR-PUB-IMG-302", "The resolved image SHALL be delivered as a URL with no supplier identifier in the path, the query string or any accompanying field.", "An image whose URL reads /suppliers/{id}/logo.png defeats FR-PUB-SUP-302.", "Customer", "The one thing that does reach a customer"],
+ ["FR-PUB-IMG-303", "Image resolution SHALL happen server-side. The customer client SHALL NOT receive the chain and evaluate it.", "A client that receives three candidate URLs has received the supplier's identity.", "Customer", "The one thing that does reach a customer"],
+ ["FR-PUB-IMG-304", "A null supplier image SHALL resolve to the placeholder without an extra request and without an error.", "Today every supplier image is null, because no screen uploads one.", "Customer", "The one thing that does reach a customer"],
+ ["FR-PUB-DOC-301", "The customer invoice SHALL NOT name a supplier, a cardCode, a base price or an exchange rate.", "The Invoice BRD's explicit never-print list already excludes order id, emails and fees; supplier cost data belongs on it for the same reason.", "Customer", "Invoices and documents"],
+ ["FR-PUB-DOC-302", "A ticket, voucher or confirmation message SHALL NOT name the supplier that fulfilled it.", "The customer bought from Zikzaak. Which vendor Zikzaak bought from is not their record.", "Customer", "Invoices and documents"],
+ ["FR-AGT-SUP-301", "An agent SHALL NOT be represented as a row in the supplier registry.", "The supplied schema's suppliers.type ENUM('api','manual','agent') proposes exactly this. An agent has commission, markup, a payout balance, listings and a login; a supplier has none of those.", "Agent", "The separation"],
+ ["FR-AGT-SUP-302", "An agent's SAP code SHALL live on the agent business record and SHALL be a separate namespace from suppliers.sap_card_code.", "BST-IQ-001 and GTA-AE-002 on the Agents list against SUP-001 on the Suppliers list. Uniqueness is enforced within each namespace, not across them.", "Agent", "The separation"],
+ ["FR-AGT-SUP-303", "No /agent route SHALL exist for suppliers.", "The agent portal's navigation is Dashboard, Orders, Listings, Payments, Terms. There is no supplier surface to build.", "Agent", "The separation"],
+ ["FR-AGT-SUP-304", "No agent-facing response SHALL contain a supplier id, cardCode, name, base price or currency.", "An agent is a competing source of stock for the same event. Zikzaak's purchase costs are not theirs to see.", "Agent", "The separation"],
+ ["FR-AGT-SUP-305", "An agent listing SHALL NOT reference a supplier, and an inventory allocation SHALL NOT reference an agent.", "Two sources, two models. supply_agent owns one, supply_moonline owns the other, and each names only what it buys from.", "Agent", "The separation"],
+ ["FR-AGT-SUP-306", "Tixstock SHALL NOT be represented as a row in the supplier registry.", "Recorded here because the same schema column proposes it. Tixstock is an integration authenticating with a bearer token; its listings belong to remote brokers whose identity arrives on the listing as seller_id and seller_name.", "Agent", "The separation"],
+ ["FR-AGT-SET-301", "The SAP reservation export's supplier object SHALL carry the cardCode of whichever party supplied the sold ticket — a supplier for own inventory, the agent for an agent listing.", "One SAP field, two possible sources. The discriminator is the order item's source, which ordering already records.", "Agent", "Where the two meet"],
+ ["FR-AGT-SET-302", "This module SHALL NOT resolve an agent's cardCode. A caller needing one SHALL ask supply_agent.", "Two registries, two contracts. A single GetCardCode spanning both would be the merge this document exists to prevent.", "Agent", "Where the two meet"],
+ ["FR-AGT-SET-303", "A payable to an agent and a payable to a supplier SHALL be distinct record types in settlement.", "An agent payout is netted against commission and has a request-and-approval flow; a supplier invoice does not.", "Agent", "Where the two meet"],
+ ["NFR-SEC-301", "All traffic SHALL be HTTPS; HTTP SHALL redirect.", "HSTS on the API domain.", "Non-functional", "Security"],
+ ["NFR-SEC-302", "Every supplier endpoint SHALL declare a permission code and SHALL be enforced server-side.", "inventory.manage to write, event.view to read, audit.view for the lifecycle panel.", "Non-functional", "Security"],
+ ["NFR-SEC-303", "The database role used by the API SHALL hold SELECT, INSERT and UPDATE on suppliers and SHALL NOT hold DELETE.", "The no-delete rule enforced below the application, where a future endpoint cannot get around it.", "Non-functional", "Security"],
+ ["NFR-SEC-304", "Uniqueness of sap_card_code SHALL be enforced by a database unique index on upper(sap_card_code), not only by an application check.", "An application-only check loses to two concurrent creates.", "Non-functional", "Security"],
+ ["NFR-SEC-305", "Immutability of sap_card_code SHALL be enforced in the domain, and a database trigger SHOULD reject an UPDATE that changes it.", "Belt and braces on the one column that historical records join to.", "Non-functional", "Security"],
+ ["NFR-SEC-306", "Write endpoints SHALL validate and reject unexpected fields.", "No mass assignment of status through the profile endpoint.", "Non-functional", "Security"],
+ ["NFR-SEC-307", "List search and filter inputs SHALL be parameterised.", "Free-text search across three columns.", "Non-functional", "Security"],
+ ["NFR-SEC-308", "image_url SHALL be validated as an HTTPS URL on an allowed host before storage.", "It is rendered on a customer surface. A stored javascript: or an attacker-controlled host is a customer-facing defect.", "Non-functional", "Security"],
+ ["NFR-SEC-309", "Dependencies SHALL be scanned in CI and high-severity findings SHALL fail the build.", "Platform standard.", "Non-functional", "Security"],
+ ["NFR-PRIV-301", "Supplier phone and email are business contact details for a named individual and SHALL be treated as personal data.", "Ahmed Hassan · ahmed@ticketco.iq is a person, not a company inbox.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-302", "Audit before and after snapshots SHALL be field-limited to what changed.", "A whole-record dump puts a phone number into a 24-month retention window on every edit.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-303", "Supplier contact details SHALL NOT appear in the SAP export, in an invoice, or in any customer or agent response.", "The SAP supplier object carries cardCode and name only.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-304", "Supplier base prices and margins SHALL NOT appear in application logs.", "The one figure that is commercially sensitive in both directions.", "Non-functional", "Privacy"],
+ ["NFR-PRIV-305", "A retention and disposal position SHALL be defined for supplier contact details before production.", "The record itself is never deleted; whether a former vendor's phone number is kept forever is a different question and nothing answers it.", "Non-functional", "Privacy"],
+ ["NFR-PERF-301", "GetSelectableSuppliers p95 SHALL be under 20 ms and SHALL be served from cache.", "It renders on every allocation row in a five-step wizard.", "Non-functional", "Performance"],
+ ["NFR-PERF-302", "GetSuppliersByIds SHALL resolve a page of inventory rows in one call.", "The Owned Inventory and Alerts screens render a supplier per row. One batch per page, never one call per row.", "Non-functional", "Performance"],
+ ["NFR-PERF-303", "The supplier cache SHALL be invalidated synchronously on create, update and status change.", "Small table, cheap invalidation, no reason to be eventually consistent.", "Non-functional", "Performance"],
+ ["NFR-PERF-304", "IsSelectable SHALL NOT require a database read on the common path.", "It runs at the command boundary of every allocation write.", "Non-functional", "Performance"],
+ ["NFR-PERF-305", "The list endpoint SHALL return the first page in under 200 ms.", "Trivial at this size; stated so it stays true if the registry grows.", "Non-functional", "Performance"],
+ ["NFR-SCAL-301", "The API SHALL be stateless and horizontally scalable; the supplier cache SHALL be shared, not per-process.", "Two instances must not disagree about a deactivation.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-302", "The design SHALL assume tens to low hundreds of suppliers, and SHALL NOT add indexes, partitioning or search infrastructure for a larger registry.", "Deliberate. Two indexes, no trigram, no denormalised search column.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-303", "Where the registry passes one thousand rows, the picker SHALL move from a full list to a server-side type-ahead.", "The stated trigger for revisiting NFR-SCAL-302, so nobody has to guess when.", "Non-functional", "Scalability"],
+ ["NFR-SCAL-304", "Outbox dispatch SHALL be safe to run concurrently and safe under duplicate delivery.", "At-least-once, idempotent consumers. Platform standard.", "Non-functional", "Scalability"],
+ ["NFR-AVAIL-301", "Supplier resolution SHALL target 99.9% monthly availability.", "Every Owned Inventory screen and every SAP export depends on it.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-302", "If IsSelectable cannot complete, the allocation write SHALL be refused, never allowed.", "Degrade closed. An allocation against an unverified supplier is a cost record with no counterparty.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-303", "If supplier resolution fails on a read path, the consuming screen SHALL render the stored snapshot rather than fail.", "Allocations and sales carry their own cardCode and name for exactly this reason.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-304", "The database SHALL have automated backups with point-in-time recovery.", "RPO ≤ 15 min, RTO ≤ 4 h. Platform standard.", "Non-functional", "Availability"],
+ ["NFR-AVAIL-305", "Migrations SHALL be backward-compatible within a release.", "Expand, migrate, contract.", "Non-functional", "Availability"],
+ ["NFR-OBS-301", "Logs SHALL be structured and carry a correlation identifier shared with the audit row's request_id.", "One trace, request to audit row.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-302", "The module SHALL expose liveness and readiness endpoints; readiness SHALL check the database and outbox lag.", "Platform standard.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-303", "A cardCode uniqueness collision SHALL be a metric.", "A spike means an import is running that nobody mentioned.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-304", "An attempted DELETE against the supplier table SHALL raise an alert.", "It should be impossible; if it happens, someone needs to know.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-305", "A refused allocation naming an inactive supplier SHALL be logged with the supplier and the caller.", "Either an operations mistake or a stale picker cache, and the log distinguishes them.", "Non-functional", "Observability and audit"],
+ ["NFR-OBS-306", "Unhandled exceptions SHALL be reported to error monitoring in every environment.", "Including development.", "Non-functional", "Observability and audit"],
+ ["NFR-COMPAT-301", "sap_card_code SHALL be treated as an external identifier owned by SAP. Its format SHALL NOT be validated beyond non-empty and length.", "SUP-001 in the prototype and S30012 in the SAP specification are different shapes. A format rule would reject live data.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-302", "The derived display name SHALL have one implementation, on the server, and SHALL be returned alongside its parts.", "Three surfaces render it. None recomposes it.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-303", "The SAP supplier object's field names and types SHALL follow the SAP Events Integration Specification exactly.", "cardCode, name, currency, exchangeRate, totalAmount, priceBreakdown.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-304", "Dates SHALL be ISO 8601 with offset.", "No implicit local time in a record SAP reads.", "Non-functional", "Compatibility"],
+ ["NFR-COMPAT-305", "The OpenAPI document SHALL name the permission each supplier endpoint requires.", "Platform standard.", "Non-functional", "Compatibility"],
+ ["NFR-LOC-301", "Supplier names and company names SHALL NOT be translated.", "They are proper nouns. catalog translates a ticket category label; nobody translates TicketCo.", "Non-functional", "Localisation"],
+ ["NFR-LOC-302", "Name, company and address-like free text SHALL be stored as UTF-8 with correct collation for Arabic script.", "Iraqi vendors will be entered in Arabic.", "Non-functional", "Localisation"],
+ ["NFR-LOC-303", "Status labels and validation messages SHALL be presentable in en, ar and ckb.", "The admin panel receives all three.", "Non-functional", "Localisation"],
+ ["NFR-LOC-304", "Sorting the list by name SHALL use a locale-aware collation rather than byte order.", "Otherwise an Arabic-script registry sorts arbitrarily.", "Non-functional", "Localisation"],
+ ["NFR-LOC-305", "The display-name separators — a middle dot before the company and an em dash before the code — SHALL render correctly in right-to-left contexts.", "Ahmed Hassan · TicketCo — SUP-001 reversed by a naive RTL layout is unreadable.", "Non-functional", "Localisation"],
+ ["NFR-A11Y-301", "The API SHALL return field-level, machine-readable errors so a client can announce exactly which field failed.", "A screen reader should hear \"SAP code already in use\", not \"conflict\".", "Non-functional", "Accessibility"],
+ ["NFR-A11Y-302", "A supplier's status SHALL be returned as data, never as a colour or an icon name.", "The client decides how to render inactive; colour must not be the only cue.", "Non-functional", "Accessibility"],
+ ["NFR-A11Y-303", "The picker SHALL return the display name as text, so an assistive technology reads the supplier and the code without parsing a rendered label.", "Name and code are separate fields in the response as well as one composed string.", "Non-functional", "Accessibility"],
+ ["NFR-MAINT-301", "The module SHALL own one schema and one DbContext, and SHALL map no table outside it.", "Enforced by an architecture test.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-302", "The module SHALL hold no foreign key leaving its schema, and no other schema SHALL hold a foreign key into it.", "The only module on the platform with no foreign key in either direction.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-303", "No other module SHALL reference this module's internals; only its contract project.", "Architecture test in CI.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-304", "The contract SHALL expose reads only. No module outside this one SHALL create, update or deactivate a supplier.", "Six read operations, no writes.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-305", "A test SHALL assert that no delete path exists — no command, no endpoint, no repository method, and no DELETE grant on the table.", "The rule is only as good as the thing that keeps it true.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-306", "A test SHALL assert that a deactivated supplier still resolves through GetSupplier and GetSuppliersByIds.", "The regression that would silently blank two years of Owned Inventory rows.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-307", "A test SHALL assert that a supplier edit does not alter any existing allocation or sale snapshot.", "The snapshot-on-write rule, automated.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-308", "A contract test SHALL assert that no supplier field appears in any /public or /agent response schema.", "FR-PUB-SUP-305, FR-AGT-SUP-304.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-309", "Migrations SHALL run clean from an empty database, and the module SHALL seed no rows.", "The registry starts empty.", "Non-functional", "Maintainability"],
+ ["NFR-MAINT-310", "CI SHALL run build, tests and migration verification on every push.", "Platform standard.", "Non-functional", "Maintainability"],
 ]};
 
 /* ════════ access — the role / permission matrix ════════ */
@@ -2326,7 +2595,130 @@ const TRACE={
  'NFR-SCAL-203':{t:['audit_logs'],e:['AuditEntry']},
  'NFR-COMPAT-201':{t:['permissions'],e:['Permission']},
  'NFR-MAINT-205':{t:['roles','permissions','role_permissions','approval_steps'],e:['Role','Permission']},
- 'NFR-MAINT-209':{t:['role_permissions'],e:['Role']}
+ 'NFR-MAINT-209':{t:['role_permissions'],e:['Role']},
+
+ 'FR-PLAT-SUP-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-SUP-302':{t:['suppliers'],e:['Supplier','SupplierName','ContactDetails']},
+ 'FR-PLAT-SUP-303':{t:['suppliers'],e:['Supplier','SapCardCode']},
+ 'FR-PLAT-SUP-304':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-PLAT-SUP-305':{t:['suppliers'],e:['Supplier','SapCardCode']},
+ 'FR-PLAT-SUP-306':{t:['suppliers'],e:['SupplierName']},
+ 'FR-PLAT-SUP-307':{t:['suppliers'],e:['SupplierName']},
+ 'FR-PLAT-SUP-308':{t:['suppliers'],e:['ContactDetails']},
+ 'FR-PLAT-SUP-309':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-SUP-310':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-SUP-311':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-SUP-312':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-302':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-305':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-307':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-308':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-STA-309':{t:['suppliers','audit_logs'],e:['Supplier','AuditEntry']},
+ 'FR-PLAT-IMG-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-IMG-302':{t:['suppliers','events','event_media'],e:['Supplier','Event']},
+ 'FR-PLAT-IMG-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-IMG-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-302':{t:['suppliers'],e:['Supplier','SapCardCode','SupplierName']},
+ 'FR-PLAT-INT-303':{t:['suppliers'],e:['Supplier','SapCardCode']},
+ 'FR-PLAT-INT-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-305':{t:['suppliers'],e:['SapCardCode','SupplierName']},
+ 'FR-PLAT-INT-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-307':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-308':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-309':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-INT-310':{t:['suppliers','audit_logs'],e:['Supplier','AuditEntry']},
+ 'FR-PLAT-API-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-API-302':{t:['suppliers'],e:['Supplier','SupplierName']},
+ 'FR-PLAT-API-303':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-PLAT-API-304':{t:['suppliers'],e:['Supplier','SapCardCode']},
+ 'FR-PLAT-API-305':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-API-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-PLAT-API-307':{t:['suppliers'],e:['SupplierName']},
+ 'FR-PLAT-API-308':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-SEC-301':{t:['suppliers','permissions'],e:['Supplier','Permission']},
+ 'FR-ADM-SEC-302':{t:['suppliers','permissions'],e:['Supplier','Permission']},
+ 'FR-ADM-SEC-303':{t:['audit_logs','permissions'],e:['AuditEntry','Permission']},
+ 'FR-ADM-SEC-304':{t:['permissions'],e:['Permission']},
+ 'FR-ADM-LST-301':{t:['suppliers'],e:['Supplier','SupplierName','ContactDetails']},
+ 'FR-ADM-LST-302':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-LST-303':{t:['suppliers'],e:['Supplier','SupplierName']},
+ 'FR-ADM-LST-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-LST-305':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-LST-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-LST-307':{t:['suppliers'],e:['SupplierName']},
+ 'FR-ADM-CRE-301':{t:['suppliers'],e:['Supplier','SupplierName','ContactDetails']},
+ 'FR-ADM-CRE-302':{t:['suppliers'],e:['Supplier','SapCardCode','SupplierName']},
+ 'FR-ADM-CRE-303':{t:['suppliers'],e:['SupplierName']},
+ 'FR-ADM-CRE-304':{t:['suppliers'],e:['Supplier','SupplierName']},
+ 'FR-ADM-CRE-305':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-ADM-CRE-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-CRE-307':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-CRE-308':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-EDT-301':{t:['suppliers'],e:['Supplier','SupplierName','ContactDetails']},
+ 'FR-ADM-EDT-302':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-ADM-EDT-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-EDT-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-EDT-305':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-EDT-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-PIC-301':{t:['suppliers'],e:['Supplier','SupplierName']},
+ 'FR-ADM-PIC-302':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-ADM-PIC-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-PIC-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-ADM-PIC-305':{t:['suppliers'],e:['ContactDetails']},
+ 'FR-ADM-AUD-301':{t:['audit_logs','suppliers'],e:['AuditEntry','Supplier']},
+ 'FR-ADM-AUD-302':{t:['audit_logs'],e:['AuditEntry','Supplier']},
+ 'FR-ADM-AUD-303':{t:['audit_logs'],e:['AuditEntry','SapCardCode']},
+ 'FR-ADM-AUD-304':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-ADM-AUD-305':{t:['audit_logs'],e:['AuditEntry']},
+ 'FR-PUB-SUP-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-SUP-302':{t:['suppliers'],e:['Supplier','SapCardCode','ContactDetails']},
+ 'FR-PUB-SUP-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-SUP-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-SUP-305':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-IMG-301':{t:['suppliers','events','event_media'],e:['Supplier','Event']},
+ 'FR-PUB-IMG-302':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-IMG-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-IMG-304':{t:['suppliers'],e:['Supplier']},
+ 'FR-PUB-DOC-301':{t:['suppliers'],e:['Supplier','SapCardCode']},
+ 'FR-PUB-DOC-302':{t:['suppliers'],e:['Supplier']},
+ 'FR-AGT-SUP-301':{t:['suppliers'],e:['Supplier']},
+ 'FR-AGT-SUP-302':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-AGT-SUP-303':{t:['suppliers'],e:['Supplier']},
+ 'FR-AGT-SUP-304':{t:['suppliers'],e:['Supplier','SapCardCode']},
+ 'FR-AGT-SUP-305':{t:['suppliers'],e:['Supplier']},
+ 'FR-AGT-SUP-306':{t:['suppliers'],e:['Supplier']},
+ 'FR-AGT-SET-301':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-AGT-SET-302':{t:['suppliers'],e:['SapCardCode']},
+ 'FR-AGT-SET-303':{t:['suppliers'],e:['Supplier']},
+ 'NFR-SEC-303':{t:['suppliers'],e:['Supplier']},
+ 'NFR-SEC-304':{t:['suppliers'],e:['SapCardCode']},
+ 'NFR-SEC-305':{t:['suppliers'],e:['SapCardCode']},
+ 'NFR-SEC-308':{t:['suppliers'],e:['Supplier']},
+ 'NFR-PRIV-301':{t:['suppliers'],e:['ContactDetails']},
+ 'NFR-PRIV-302':{t:['audit_logs'],e:['AuditEntry']},
+ 'NFR-PRIV-303':{t:['suppliers'],e:['ContactDetails']},
+ 'NFR-PERF-301':{t:['suppliers'],e:['Supplier']},
+ 'NFR-PERF-302':{t:['suppliers'],e:['Supplier']},
+ 'NFR-PERF-304':{t:['suppliers'],e:['Supplier']},
+ 'NFR-SCAL-302':{t:['suppliers'],e:['Supplier']},
+ 'NFR-AVAIL-302':{t:['suppliers'],e:['Supplier']},
+ 'NFR-AVAIL-303':{t:['suppliers'],e:['SapCardCode','SupplierName']},
+ 'NFR-COMPAT-301':{t:['suppliers'],e:['SapCardCode']},
+ 'NFR-COMPAT-302':{t:['suppliers'],e:['SupplierName']},
+ 'NFR-COMPAT-303':{t:['suppliers'],e:['SapCardCode','SupplierName']},
+ 'NFR-LOC-301':{t:['suppliers'],e:['SupplierName']},
+ 'NFR-LOC-302':{t:['suppliers'],e:['SupplierName']},
+ 'NFR-MAINT-302':{t:['suppliers'],e:['Supplier']},
+ 'NFR-MAINT-304':{t:['suppliers'],e:['Supplier']},
+ 'NFR-MAINT-305':{t:['suppliers'],e:['Supplier']},
+ 'NFR-MAINT-306':{t:['suppliers'],e:['Supplier']},
+ 'NFR-MAINT-307':{t:['suppliers'],e:['Supplier']},
+ 'NFR-MAINT-308':{t:['suppliers'],e:['Supplier']}
 };
 const REQ_BY_TABLE={},REQ_BY_ENT={};
 Object.keys(TRACE).forEach(id=>{
@@ -2512,7 +2904,7 @@ palq.addEventListener('keydown',e=>{
   if(e.key==='ArrowDown'){e.preventDefault();const p=vis.indexOf(sel);sel=vis[Math.min(p+1,vis.length-1)]??sel;mark()}
   else if(e.key==='ArrowUp'){e.preventDefault();const p=vis.indexOf(sel);sel=vis[Math.max(p-1,0)]??sel;mark()}
   else if(e.key==='Enter'){e.preventDefault();pick(sel)}
-  else if(e.key==='Escape'){e.preventDefault();closePal()}
+  else if(e.key==='Escape'){e.preventDefault();closePal();closeHelp();closeMHelp()}
 });
 document.getElementById('searchbtn').onclick=openPal;
 const help=document.getElementById('help');
@@ -2520,6 +2912,11 @@ function openHelp(){help.classList.add('on')}
 function closeHelp(){help.classList.remove('on')}
 document.getElementById('helpx').onclick=closeHelp;
 help.addEventListener('mousedown',e=>{if(e.target===help)closeHelp()});
+const mhelp=document.getElementById('mhelp');
+function openMHelp(){mhelp.classList.add('on')}
+function closeMHelp(){mhelp.classList.remove('on')}
+document.getElementById('mhelpx').onclick=closeMHelp;
+mhelp.addEventListener('mousedown',e=>{if(e.target===mhelp)closeMHelp()});
 
 function applyHighlight(){
   if(!pendingHL)return;
@@ -2667,7 +3064,11 @@ function viewErd(k){
 
 /* ── L3 access matrix ── */
 function viewMatrix(k){
-  const d=MTX[k],w=el('div','wrap');w.appendChild(head('mtx-'+k));
+  const d=MTX[k],w=el('div','wrap');
+  const mh=head('mtx-'+k);
+  const minfo=el('button','infobtn','<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/></svg> How to read this');
+  minfo.onclick=openMHelp;mh.appendChild(minfo);
+  w.appendChild(mh);
   const RISK={low:'gray',medium:'yellow',high:'orange',very_high:'red'};
 
   w.appendChild(el('div','legend',d.legend.map(([c,t])=>
@@ -2709,6 +3110,11 @@ function viewMatrix(k){
     '<b>'+orphans.join(' and ')+'</b> reach no role but Super Admin. They are seeded permissions, but the matrix above has no Marketing area, '+
     'so Marketing Content Admin — the role whose stated purpose is campaigns, notifications and content — is granted neither. Raised as an open question.'));
 
+  /* 3b — the areas that do not exist at all */
+  if(k==='access')w.appendChild(el('div','mtxnote hole',
+    '<b>No permission code exists for managing agents.</b> The dashboard invites, approves, prices and pays agents; the roles document does not mention them. '+
+    'Unlike the Marketing gap there is no row to render — you cannot see a permission that was never written. Raised as an open question.'));
+
   /* 4 — how a score becomes codes */
   w.appendChild(el('h3','sec','How a score becomes permission codes'));
   const t=el('div','mtx');
@@ -2720,6 +3126,46 @@ function viewMatrix(k){
   w.appendChild(t);
   w.appendChild(el('p','note','<code>V</code> takes the read codes. <code>M</code> takes read plus write. <code>A</code> takes read plus the approve code. '+
     '<code>R</code> takes the request code alone. <code>O</code> takes read plus write and is unscoped in V1. <code>F</code> takes everything.'));
+
+  /* 5 — where the supply family lands */
+  if(k==='access'){
+    w.appendChild(el('h3','sec','Where the supply modules take their permissions'));
+    w.appendChild(el('p','note','No supply module has an area of its own. Each one either borrows an existing area or has nowhere to land. '+
+      'Derived from the roles document, not chosen — the Events and inventory row reads '+
+      '<i>“Events, categories, ticket listings, supplier data, and availability checks.”</i>'));
+    const SUP=[
+      ['suppliers','Suppliers list, create, Manage','Events and inventory','event.view','inventory.manage',
+       'Covered. The document files supplier data inside this area by name'],
+      ['supply_moonline','Owned Inventory, Step 3 allocations, Inventory Alerts','Events and inventory','event.view','inventory.manage',
+       'Covered by the same sentence — “ticket listings … and availability checks”'],
+      ['supply_moonline','Movements ledger — manual adjustment','Events and inventory','event.view','inventory.manage',
+       'Covered, but arguably under-gated: it moves stock with no order behind it and is not sensitive'],
+      ['supply_tixstock','Tixstock Monitor, Refresh, webhook replay','Events and inventory','event.view','inventory.manage',
+       'Covered only by inference. <code>supplier.sync.view</code> appears in the document’s <i>example</i> column and not in its canonical list'],
+      ['availability','Availability Monitor — read only','Events and inventory','event.view','—',
+       'Covered'],
+      ['supply_agent','Agents list — invite, approve, suspend',null,null,null,
+       'No area. No code'],
+      ['supply_agent','Set agent commission and markup',null,null,null,
+       'No area. No code. Prices every future agent sale'],
+      ['supply_agent','Inventory Submissions — approve, reject, request changes',null,null,null,
+       'No area. No code. There is no approve verb anywhere in supply'],
+      ['settlement','Settlements — Settle, Settle All Eligible',null,null,null,
+       'No area. No code. Money leaves the business'],
+      ['settlement','Agent payout requests',null,null,null,
+       'No area. No code. <code>refund.approve</code> is sensitive; this is the same class of action and is ungated']
+    ];
+    const st=el('div','mtx');
+    st.innerHTML='<table><thead><tr><th class="rn">Module</th><th>Surface</th><th>Area</th><th>read</th><th>write</th><th>Status</th></tr></thead><tbody>'+
+      SUP.map(([m,sc,ar,r,wr,note])=>'<tr><td class="rn">'+m+'</td><td>'+sc+'</td>'+
+        (ar?'<td>'+ar+'</td><td><code>'+r+'</code></td><td>'+(wr==='—'?'<span class="no">—</span>':'<code>'+wr+'</code>')+'</td>'
+           :'<td class="miss">none</td><td class="miss">none</td><td class="miss">none</td>')+
+        '<td'+(ar?'':' class="miss"')+'>'+note+'</td></tr>').join('')+'</tbody></table>';
+    w.appendChild(st);
+    w.appendChild(el('p','note','Everything that reads or writes supply data today resolves to two codes — <code>event.view</code> and <code>inventory.manage</code>. '+
+      'Because all nine roles score <code>V</code> or better on Events, <b>every role can read supplier purchase cost</b>, including Marketing Content Admin and Support Lead. '+
+      'Writes are limited to Super Admin and Operations Manager, which is right. The read side is the open question.'));
+  }
   return w;
 }
 /* ── L4 table ── */
